@@ -1,6 +1,6 @@
 Scriptname ILC_PetAlias extends ReferenceAlias
 {IamLoveCreature V.2 - attached to every pet alias (Pet01..Pet50) on ILC_FollowerQuest.
-Activation of a pet is blocked: pressing E opens the creature dialogue (same as the K hotkey).}
+Activation of a pet is blocked: pressing E opens the companion command menu (Talk = creature dialogue).}
 
 Event OnActivate(ObjectReference akActionRef)
 	Actor a = GetActorRef()
@@ -15,7 +15,7 @@ Event OnActivate(ObjectReference akActionRef)
 	If fol.PlayerRef.IsOnMount()
 		Return
 	EndIf
-	fol.Main.TryOpenDialogue(a)
+	fol.OpenPetMenu(a)
 EndEvent
 
 Event OnDeath(Actor akKiller)

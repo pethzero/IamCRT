@@ -333,6 +333,41 @@ for i, rec in enumerate(pk_home):
     s = insert_before(s, "PKCU", [sub("QNAM", u32(q_fol.formid))])
     p.fill(rec, s)
 
+# ---- V.2.2: E on a companion opens a command message box (Animal Followers style)
+g_follow = p.add("ILC_MsgFollow", "GLOB", glob(0, "s"))
+g_wait = p.add("ILC_MsgWait", "GLOB", glob(0, "s"))
+g_home = p.add("ILC_MsgHome", "GLOB", glob(0, "s"))
+g_horse = p.add("ILC_MsgHorse", "GLOB", glob(0, "s"))
+mesg_menu = p.reserve("ILC_PetMenu", "MESG")
+mesg_release = p.reserve("ILC_PetReleaseConfirm", "MESG")
+MENU_ALIAS = 200
+
+
+def gv(g, v):
+    return CTDA("GetGlobalValue", "==", v, p1=g.formid)
+
+
+MENU_BUTTONS = [                       # index order = ILC_Followers.OpenPetMenu
+    ("Follow me",           [gv(g_follow, 0)]),
+    ("Stop following",      [gv(g_follow, 1)]),
+    ("Wait here",           [gv(g_follow, 1), gv(g_wait, 0)]),
+    ("Let's go",            [gv(g_wait, 1)]),
+    ("Make your home here", []),
+    ("Forget your home",    [gv(g_home, 1)]),
+    ("Ride",                [gv(g_horse, 1)]),
+    ("Talk",                []),
+    ("Release",             []),
+    ("Nothing",             []),
+]
+menu = [sub("DESC", zstr(f"What do you want <Alias=MenuPet> to do?")), FULL("Companion"),
+        sub("INAM", u32(0)), sub("QNAM", u32(q_fol.formid)), sub("DNAM", u32(1))]
+for text, conds in MENU_BUTTONS:
+    menu += [sub("ITXT", zstr(text))] + conds
+p.fill(mesg_menu, menu)
+p.fill(mesg_release, [sub("DESC", zstr("Release <Alias=MenuPet>? It becomes a wild creature again.")),
+                      FULL("Release"), sub("INAM", u32(0)), sub("QNAM", u32(q_fol.formid)), sub("DNAM", u32(1)),
+                      sub("ITXT", zstr("Yes, release")), sub("ITXT", zstr("No"))])
+
 aliases = []
 alias_scripts = {}
 for i in range(SLOTS):
@@ -354,6 +389,13 @@ p.fill(q_fol, [
             Prop.obj("XMarker", XMARKER),
             Prop.obj("Main", q_dlg.formid),
             Prop.obj("CommandPower", spel_pow.formid),
+            Prop.obj("PetMenu", mesg_menu.formid),
+            Prop.obj("ReleaseConfirm", mesg_release.formid),
+            Prop.obj("gMsgFollow", g_follow.formid),
+            Prop.obj("gMsgWait", g_wait.formid),
+            Prop.obj("gMsgHome", g_home.formid),
+            Prop.obj("gMsgHorse", g_horse.formid),
+            Prop.obj("ActorTypeHorse", p.master("Skyrim.esm", 0x026110)),
         ])],
         alias_scripts=alias_scripts,
         quest_formid=q_fol.formid),
@@ -361,8 +403,9 @@ p.fill(q_fol, [
     # priority 40 < dialogue quest 60 (and SLAC 100): ForceGreet packages beat Follow/Home/Sandbox
     quest_dnam(start_game_enabled=True, priority=40),
     NEXT(),
-    ANAM_next_alias(HOME_ALIAS_BASE + SLOTS),
+    ANAM_next_alias(MENU_ALIAS + 1),
     *aliases,
+    *ref_alias(MENU_ALIAS, "MenuPet", flags=("Optional", "AllowReuse", "StoresText")),
 ])
 
 mgef_pow.subs = [(t, VMAD([Script("ILC_PowerEffect", [Prop.obj("Followers", q_fol.formid),

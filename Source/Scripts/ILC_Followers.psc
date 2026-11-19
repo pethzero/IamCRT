@@ -15,6 +15,17 @@ Static Property XMarker Auto                ; Skyrim XMarker (home markers)
 ILC_Main Property Main Auto                 ; ILC_DialogueQuest (E on a pet opens its dialogue)
 Spell Property CommandPower Auto            ; ILC_PowerCommands (Z power: follow / wait / summon)
 
+; E-menu on a companion (message box like Animal Followers)
+Message Property PetMenu Auto               ; ILC_PetMenu
+Message Property ReleaseConfirm Auto        ; ILC_PetReleaseConfirm
+GlobalVariable Property gMsgFollow Auto     ; button conditions
+GlobalVariable Property gMsgWait Auto
+GlobalVariable Property gMsgHome Auto
+GlobalVariable Property gMsgHorse Auto
+Keyword Property ActorTypeHorse Auto
+int Property MenuAliasId = 200 AutoReadOnly ; alias "MenuPet" (name shown in the menu text)
+bool _menuOpen = false
+
 ; settings (MCM)
 bool Property MarkAsFollower = true Auto Hidden     ; add following pets to CurrentFollowerFaction
 bool Property TeleportOnLoad = true Auto Hidden     ; following pets catch up after a load screen
@@ -303,6 +314,50 @@ function _Cleanup(Actor a, int slot)
 	HomeAlias(slot).Clear()
 	PetAlias(slot).Clear()
 	a.EvaluatePackage()
+endfunction
+
+; ---------------------------------------------------------------- E menu
+; buttons: 0 Follow me, 1 Stop following, 2 Wait here, 3 Let's go, 4 Make your home here,
+;          5 Forget your home, 6 Ride, 7 Talk, 8 Release, 9 Nothing
+function OpenPetMenu(Actor a)
+	if _menuOpen || !IsPet(a)
+		return
+	endif
+	_menuOpen = true
+	gMsgFollow.SetValueInt(a.IsPlayerTeammate() as int)
+	gMsgWait.SetValueInt(IsActorWaiting(a) as int)
+	gMsgHome.SetValueInt(HasHome(a) as int)
+	gMsgHorse.SetValueInt(a.HasKeyword(ActorTypeHorse) as int)
+	ReferenceAlias menuAlias = GetAlias(MenuAliasId) as ReferenceAlias
+	menuAlias.ForceRefTo(a)
+
+	int b = PetMenu.Show()
+	if b == 0
+		SetFollow(a, true)
+	elseif b == 1
+		SetFollow(a, false)
+	elseif b == 2
+		SetWait(a, true)
+	elseif b == 3
+		SetWait(a, false)
+	elseif b == 4
+		SetHome(a, true)
+		Debug.Notification(a.GetDisplayName() + " will live here when it is not following you")
+	elseif b == 5
+		SetHome(a, false)
+	elseif b == 6
+		a.Activate(PlayerRef, true)      ; default activation = mount
+	elseif b == 7
+		Main.TryOpenDialogue(a)
+	elseif b == 8
+		if ReleaseConfirm.Show() == 0
+			if ReleasePet(a)
+				Debug.Notification(a.GetDisplayName() + " is free again")
+			endif
+		endif
+	endif
+	menuAlias.Clear()
+	_menuOpen = false
 endfunction
 
 ; ---------------------------------------------------------------- commands

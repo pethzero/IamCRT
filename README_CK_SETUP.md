@@ -16,10 +16,10 @@ managed by both mods.
 - **Join me. I'll take care of you.** → it becomes your companion (no animation)
 - **Never mind.** → cancel
 
-**Companions:** just press **E** (Activate) on a companion: it opens the same dialogue (no K needed).
-Lines (only those that fit the state are shown): `Follow me.` · `Wait here.` · `Let's go.` · `You can stop following me.` ·
-`Make your home here.` · `You don't need that home anymore.` · `Let me see what you carry.` · `Let me ride you.` (horses) ·
-`You are free now. (Release)` · `Hello!`
+**Companions:** press **E** (Activate) on a companion → command menu (like Animal Followers):
+`Follow me` / `Stop following` · `Wait here` / `Let's go` · `Make your home here` · `Forget your home` ·
+`Ride` (horses) · `Talk` (opens the creature dialogue, same as K) · `Release` (asks to confirm) · `Nothing`.
+Buttons that don't fit the companion's state are hidden. The K dialogue still has every command too.
 
 **Power "Companion Commands"** (added automatically, use it with the shout key **Z**):
 Follow me (all resume) · Wait here (all wait) · Summon followers · Summon all · Cancel.
@@ -42,6 +42,8 @@ packages `ILC_PetFollowPackage` 080D, `ILC_PetSandboxPackage` 080E, `ILC_PetHome
 (copied from Animal Followers; home packages target their Home alias), command topics 0841–0849 (INFOs 084A–0852,
 fragments in `ILC_TIF_Pet`). V.2.1 adds topics `ILC_PetTameJoin` 0853 / `ILC_PetTameCancel` 0854 / `ILC_PetRide` 0855
 (INFOs 0856–0858), power `ILC_PowerEffect` MGEF 0859 / `ILC_PowerCommands` SPEL 085A / `ILC_PowerMsg` MESG 085B.
+V.2.2: globals `ILC_MsgFollow/Wait/Home/Horse` 085C–085F, messages `ILC_PetMenu` 0860 / `ILC_PetReleaseConfirm` 0861,
+alias `MenuPet` id 200 on `ILC_FollowerQuest` (name in the menu text).
 Scripts: `ILC_Followers`, `ILC_PetAlias`, `ILC_TIF_Pet`, `ILC_PowerEffect`.
 `tools\af_templates.json` caches the Animal Followers template records, so the build does not need that mod.
 
