@@ -12,6 +12,8 @@ Faction Property PetWaitingFaction Auto     ; ILC_PetWaiting     (dialogue condi
 Faction Property AllyFaction Auto           ; Skyrim DunPlayerAllyFaction
 Faction Property CurrentFollowerFaction Auto ; Skyrim CurrentFollowerFaction (SLAC follower dialogue)
 Static Property XMarker Auto                ; Skyrim XMarker (home markers)
+ILC_Main Property Main Auto                 ; ILC_DialogueQuest (E on a pet opens its dialogue)
+Spell Property CommandPower Auto            ; ILC_PowerCommands (Z power: follow / wait / summon)
 
 ; settings (MCM)
 bool Property MarkAsFollower = true Auto Hidden     ; add following pets to CurrentFollowerFaction
@@ -36,6 +38,7 @@ int[] dRelPA
 float[] dAggression
 Faction[] dCrimeFaction
 bool[] dStolen
+bool[] dActBlocked       ; v2: activation state before taming
 Form[] raceOverrides     ; races whose CantOpenDoors flag we cleared
 int raceOverrideCount = 0
 
@@ -86,6 +89,22 @@ function DoUpdate()
 	endif
 	if !initialized
 		return
+	endif
+	if currentVersion < 2
+		; V.2.1: pets talk on Activate (E) -> block default activation of existing pets
+		dActBlocked = new bool[50]
+		int i = SlotLimit
+		while i
+			i -= 1
+			if tracked[i]
+				dActBlocked[i] = tracked[i].IsActivationBlocked()
+				tracked[i].BlockActivation(true)
+			endif
+		endwhile
+		currentVersion = 2
+	endif
+	if CommandPower && !PlayerRef.HasSpell(CommandPower)
+		PlayerRef.AddSpell(CommandPower, false)
 	endif
 	ReApplyDoorOverrides()
 	RegisterForMenu("Loading Menu")
@@ -207,6 +226,7 @@ int function TamePet(Actor a)
 	dRelPA[slot] = PlayerRef.GetRelationshipRank(a)
 	dAggression[slot] = a.GetActorValue("Aggression")
 	dStolen[slot] = stolen
+	dActBlocked[slot] = a.IsActivationBlocked()
 
 	a.SetCrimeFaction(none)
 	a.AddToFaction(PetFaction)
@@ -215,6 +235,7 @@ int function TamePet(Actor a)
 	PlayerRef.SetRelationshipRank(a, 3)
 	a.SetActorValue("Aggression", 0.0)
 	a.SetActorValue("WaitingForPlayer", 0.0)
+	a.BlockActivation(true)
 
 	tracked[slot] = a
 	actorCount += 1
@@ -278,6 +299,7 @@ function _Cleanup(Actor a, int slot)
 		a.SetActorValue("Aggression", dAggression[slot])
 	endif
 	dStolen[slot] = false
+	a.BlockActivation(dActBlocked[slot])
 	HomeAlias(slot).Clear()
 	PetAlias(slot).Clear()
 	a.EvaluatePackage()
@@ -477,6 +499,9 @@ function ReleaseAll()
 		endif
 	endwhile
 	SetDoorOverride(false)
+	if CommandPower
+		PlayerRef.RemoveSpell(CommandPower)
+	endif
 endfunction
 
 ; ---------------------------------------------------------------- history

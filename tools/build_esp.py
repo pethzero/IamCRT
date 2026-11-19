@@ -76,13 +76,14 @@ def read_records(path, wanted):
 
 
 AF_PET_FACTION, AF_FOLLOW, AF_SANDBOX, AF_HOME1 = 0x01000800, 0x01000812, 0x01000887, 0x0100080D
+AF_MGEF_CTL, AF_SPEL_POW = 0x01000892, 0x01000891   # "Pet Commands" power
 AF_PLUGIN = os.path.normpath(os.path.join(HERE, r"..\..\Animal Followers (Beta)\_backup_original\nPetFollowers.esp"))
 if not os.path.isfile(AF_PLUGIN):
     AF_PLUGIN = os.path.normpath(os.path.join(HERE, r"..\..\Animal Followers (Beta)\Data\nPetFollowers.esp"))
 import json  # noqa: E402
 if os.path.isfile(AF_PLUGIN):
-    AF = read_records(AF_PLUGIN, {AF_PET_FACTION, AF_FOLLOW, AF_SANDBOX, AF_HOME1})
-    assert len(AF) == 4, f"Animal Followers templates not found in {AF_PLUGIN}"
+    AF = read_records(AF_PLUGIN, {AF_PET_FACTION, AF_FOLLOW, AF_SANDBOX, AF_HOME1, AF_MGEF_CTL, AF_SPEL_POW})
+    assert len(AF) == 6, f"Animal Followers templates not found in {AF_PLUGIN}"
     with open(AF_CACHE, "w", encoding="utf-8") as f:
         json.dump({hex(k): [t, fl, [[st, d.hex()] for st, d in subs]] for k, (t, fl, subs) in AF.items()}, f, indent=1)
 else:
@@ -156,7 +157,7 @@ pk_home = [p.reserve(f"ILC_PetHomePackage{i + 1:02d}", "PACK") for i in range(SL
 # player commands (topic text = what the player says, response = what the creature "does")
 COMMANDS = [
     # edid,              prompt,                              response,                                       fragment,             conditions
-    ("ILC_PetTame",      "Come with me. (Tame)",              "*It looks at you and decides to trust you.*", "Fragment_Tame",      "notpet"),
+    ("ILC_PetTame",      "I need a follower.",                "*It looks at you curiously.*",                None,                 "notpet"),
     ("ILC_PetFollow",    "Follow me.",                        "*It comes to your side.*",                    "Fragment_Follow",    "pet notfollow"),
     ("ILC_PetWait",      "Wait here.",                        "*It sits down and waits.*",                   "Fragment_Wait",      "pet follow notwait"),
     ("ILC_PetResume",    "Let's go.",                         "*It jumps up, ready to go.*",                 "Fragment_Resume",    "pet follow wait"),
@@ -228,15 +229,72 @@ p.fill(t_reply, dial(q_dlg.formid, branch=br.formid, prompt="Hello!", priority=1
 i_tclt = max(i for i, (t, _) in enumerate(info_hello.subs) if t == "TCLT")
 info_hello.subs[i_tclt + 1:i_tclt + 1] = [sub("TCLT", u32(t.formid)) for t in cmd_topics]
 
-for (edid, prompt, resp, frag, conds), topic in zip(COMMANDS, cmd_topics):
-    p.fill(topic, dial(q_dlg.formid, branch=br.formid, prompt=prompt))
-    p.add_info(topic, info(
+def command_info(topic, resp, frag, conds, goodbye=True):
+    return p.add_info(topic, info(
         resp,
-        flags=("Goodbye",) + silent,
+        flags=(("Goodbye",) if goodbye else ()) + silent,
         conditions=[is_creature_alias] + [COND[c] for c in conds.split()],
-        vmad=VMAD_info([Script("ILC_TIF_Pet")], "ILC_TIF_Pet", end=frag),
+        vmad=VMAD_info([Script("ILC_TIF_Pet")], "ILC_TIF_Pet", end=frag) if frag else None,
         notes="V.2 pet command",
     ))
+
+
+infos = {}
+for (edid, prompt, resp, frag, conds), topic in zip(COMMANDS, cmd_topics):
+    p.fill(topic, dial(q_dlg.formid, branch=br.formid, prompt=prompt))
+    infos[edid] = command_info(topic, resp, frag, conds, goodbye=frag is not None)
+
+# ---- V.2.1 (appended: FormIDs above stay the same)
+# "I need a follower." -> creature reacts -> player picks Join (tame) or Never mind (cancel)
+SUB_CHOICES = [
+    ("ILC_PetTameJoin",   "Join me. I'll take care of you.", "*It decides to trust you.*",     "Fragment_Tame", "notpet"),
+    ("ILC_PetTameCancel", "Never mind.",                     "*It loses interest.*",           None,            "notpet"),
+]
+ACTOR_TYPE_HORSE = p.master("Skyrim.esm", 0x026110)
+COND["horse"] = CTDA("HasKeyword", "==", 1, p1=ACTOR_TYPE_HORSE)
+EXTRA = [("ILC_PetRide", "Let me ride you.", "*It lowers its back for you.*", "Fragment_Ride", "pet horse")]
+
+sub_topics = [p.reserve(c[0], "DIAL") for c in SUB_CHOICES]
+extra_topics = [p.reserve(c[0], "DIAL") for c in EXTRA]
+for (edid, prompt, resp, frag, conds), topic in zip(SUB_CHOICES + EXTRA, sub_topics + extra_topics):
+    p.fill(topic, dial(q_dlg.formid, branch=br.formid, prompt=prompt))
+    command_info(topic, resp, frag, conds)
+
+tame_info = infos["ILC_PetTame"]
+i_cnam = next(i for i, (t, _) in enumerate(tame_info.subs) if t == "CNAM")
+tame_info.subs[i_cnam + 1:i_cnam + 1] = [sub("TCLT", u32(t.formid)) for t in sub_topics]
+i_tclt = max(i for i, (t, _) in enumerate(info_hello.subs) if t == "TCLT")
+info_hello.subs[i_tclt + 1:i_tclt + 1] = [sub("TCLT", u32(t.formid)) for t in extra_topics]
+
+# "Companion Commands" power (Z): MGEF + SPEL copied from AF's "Pet Commands", new message box
+mgef_pow = p.reserve("ILC_PowerEffect", "MGEF")
+spel_pow = p.reserve("ILC_PowerCommands", "SPEL")
+mesg_pow = p.reserve("ILC_PowerMsg", "MESG")
+p.fill(mesg_pow, [
+    sub("DESC", zstr("Command your creature companions")),
+    FULL("Companion Commands"),
+    sub("INAM", u32(0)),
+    sub("DNAM", u32(1)),          # message box
+    *[sub("ITXT", zstr(b)) for b in ("Follow me", "Wait here", "Summon followers", "Summon all", "Cancel")],
+])
+mg = []
+for t, d in af_subs(AF_MGEF_CTL):
+    if t == "VMAD":
+        d = VMAD([Script("ILC_PowerEffect", [Prop.obj("Followers", 0), Prop.obj("CommandMsg", mesg_pow.formid)])])[1]
+    elif t == "FULL":
+        d = zstr("Companion Commands")
+    elif t == "DNAM":
+        d = zstr("Follow / wait / summon your creature companions")
+    mg.append((t, d))
+p.fill(mgef_pow, mg)
+sp = []
+for t, d in af_subs(AF_SPEL_POW):
+    if t == "FULL":
+        d = zstr("Companion Commands")
+    elif t == "EFID":
+        d = u32(mgef_pow.formid)
+    sp.append((t, d))
+p.fill(spel_pow, sp)
 
 p.fill(view, dlvw(q_dlg.formid, [br.formid]))
 
@@ -294,6 +352,8 @@ p.fill(q_fol, [
             Prop.obj("AllyFaction", DUN_PLAYER_ALLY),
             Prop.obj("CurrentFollowerFaction", CURRENT_FOLLOWER),
             Prop.obj("XMarker", XMARKER),
+            Prop.obj("Main", q_dlg.formid),
+            Prop.obj("CommandPower", spel_pow.formid),
         ])],
         alias_scripts=alias_scripts,
         quest_formid=q_fol.formid),
@@ -304,6 +364,10 @@ p.fill(q_fol, [
     ANAM_next_alias(HOME_ALIAS_BASE + SLOTS),
     *aliases,
 ])
+
+mgef_pow.subs = [(t, VMAD([Script("ILC_PowerEffect", [Prop.obj("Followers", q_fol.formid),
+                                                      Prop.obj("CommandMsg", mesg_pow.formid)])])[1])
+                 if t == "VMAD" else (t, d) for t, d in mgef_pow.subs]
 
 # ---- write
 esp = os.path.join(OUT_DIR, "IamLoveCreature.esp")

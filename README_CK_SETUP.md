@@ -12,10 +12,17 @@ managed by both mods.
 | pets not in `CurrentFollowerFaction` | following pets join it (MCM toggle) → SLAC "Follower Dialogue" sees them |
 
 ## In game
-Look at a creature → **K** → it greets you → choose:
-`Come with me. (Tame)` · `Follow me.` · `Wait here.` · `Let's go.` · `You can stop following me.` ·
-`Make your home here.` · `You don't need that home anymore.` · `Let me see what you carry.` · `You are free now. (Release)` · `Hello!`
-(only the lines that fit the creature's state are shown).
+**Taming:** look at a creature → **K** → it greets you → **I need a follower.** → it reacts →
+- **Join me. I'll take care of you.** → it becomes your companion (no animation)
+- **Never mind.** → cancel
+
+**Companions:** just press **E** (Activate) on a companion: it opens the same dialogue (no K needed).
+Lines (only those that fit the state are shown): `Follow me.` · `Wait here.` · `Let's go.` · `You can stop following me.` ·
+`Make your home here.` · `You don't need that home anymore.` · `Let me see what you carry.` · `Let me ride you.` (horses) ·
+`You are free now. (Release)` · `Hello!`
+
+**Power "Companion Commands"** (added automatically, use it with the shout key **Z**):
+Follow me (all resume) · Wait here (all wait) · Summon followers · Summon all · Cancel.
 
 MCM → IamLoveCreature:
 - **Settings** — V.1 options (Mod Enabled, hotkey, OPEN test).
@@ -25,7 +32,7 @@ MCM → IamLoveCreature:
 - **Follower Settings** — Summon followers / Summon all / Wait all / Resume all, *Count as follower (SLAC)*,
   *Catch up after load screens*, *Companions open doors* (SKSE race flags), Debug, Release all.
 
-Not ported from Animal Followers: the Tame power (taming is a dialogue line now) and the arrest/jail confiscation
+Not ported from Animal Followers: the Tame spell (taming is a dialogue line now) and the arrest/jail confiscation
 of stolen pets (taming an owned animal still raises a theft alarm and shows "Stolen" in the MCM).
 
 ## V.2 records (new, FormIDs from 0809)
@@ -33,7 +40,9 @@ of stolen pets (taming an owned animal still raises a theft alarm and shows "Sto
 factions `ILC_PetFaction` 080A / `ILC_PetHasHome` 080B / `ILC_PetWaiting` 080C,
 packages `ILC_PetFollowPackage` 080D, `ILC_PetSandboxPackage` 080E, `ILC_PetHomePackage01–50` 080F–0840
 (copied from Animal Followers; home packages target their Home alias), command topics 0841–0849 (INFOs 084A–0852,
-fragments in `ILC_TIF_Pet`). New scripts: `ILC_Followers`, `ILC_PetAlias`, `ILC_TIF_Pet`.
+fragments in `ILC_TIF_Pet`). V.2.1 adds topics `ILC_PetTameJoin` 0853 / `ILC_PetTameCancel` 0854 / `ILC_PetRide` 0855
+(INFOs 0856–0858), power `ILC_PowerEffect` MGEF 0859 / `ILC_PowerCommands` SPEL 085A / `ILC_PowerMsg` MESG 085B.
+Scripts: `ILC_Followers`, `ILC_PetAlias`, `ILC_TIF_Pet`, `ILC_PowerEffect`.
 `tools\af_templates.json` caches the Animal Followers template records, so the build does not need that mod.
 
 ---

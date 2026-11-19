@@ -51,3 +51,7 @@ Function Fragment_Release(ObjectReference akSpeakerRef)
 		Debug.Notification(a.GetDisplayName() + " is free again")
 	EndIf
 EndFunction
+
+Function Fragment_Ride(ObjectReference akSpeakerRef)
+	akSpeakerRef.Activate(Game.GetPlayer(), True)   ; default activation = mount
+EndFunction
