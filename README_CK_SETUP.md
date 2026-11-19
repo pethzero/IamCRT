@@ -1,0 +1,128 @@
+# IamLoveCreature — V.2 (Creature Followers)
+
+V.2 merges the creature follower system from *Animal Followers (Beta)* into IamLoveCreature.
+**Uninstall Animal Followers first** (its MCM/power → Uninstall, save, remove it): a creature must not be
+managed by both mods.
+
+## Why pets of Animal Followers could not talk (fixed in V.2)
+| Animal Followers | V.2 |
+|---|---|
+| Pet quest priority **100** → its Follow package beats the ILC (60) ForceGreet, so the K hotkey did nothing | `ILC_FollowerQuest` priority **40** → ILC (60) and SLAC (100) ForceGreet always win |
+| `BlockActivation(true)` + own activate menu on every pet | no activation override; commands are in the creature dialogue |
+| pets not in `CurrentFollowerFaction` | following pets join it (MCM toggle) → SLAC "Follower Dialogue" sees them |
+
+## In game
+Look at a creature → **K** → it greets you → choose:
+`Come with me. (Tame)` · `Follow me.` · `Wait here.` · `Let's go.` · `You can stop following me.` ·
+`Make your home here.` · `You don't need that home anymore.` · `Let me see what you carry.` · `You are free now. (Release)` · `Hello!`
+(only the lines that fit the creature's state are shown).
+
+MCM → IamLoveCreature:
+- **Settings** — V.1 options (Mod Enabled, hotkey, OPEN test).
+- **Follower Status** — pick a companion: race, level, behaviour, Health/Stamina/Magicka, location, home; commands
+  Follow / Wait / Summon / Go to / Set home / Clear home / Inventory / Release; list of all companions below.
+- **Slot History** — every companion: click name = **Summon**, click location = **Go to**; event log (tamed / released / died).
+- **Follower Settings** — Summon followers / Summon all / Wait all / Resume all, *Count as follower (SLAC)*,
+  *Catch up after load screens*, *Companions open doors* (SKSE race flags), Debug, Release all.
+
+Not ported from Animal Followers: the Tame power (taming is a dialogue line now) and the arrest/jail confiscation
+of stolen pets (taming an owned animal still raises a theft alarm and shows "Stolen" in the MCM).
+
+## V.2 records (new, FormIDs from 0809)
+`ILC_FollowerQuest` 0809 (aliases Pet01–Pet50 = ids 0–49 with script `ILC_PetAlias`, Home01–Home50 = ids 100–149),
+factions `ILC_PetFaction` 080A / `ILC_PetHasHome` 080B / `ILC_PetWaiting` 080C,
+packages `ILC_PetFollowPackage` 080D, `ILC_PetSandboxPackage` 080E, `ILC_PetHomePackage01–50` 080F–0840
+(copied from Animal Followers; home packages target their Home alias), command topics 0841–0849 (INFOs 084A–0852,
+fragments in `ILC_TIF_Pet`). New scripts: `ILC_Followers`, `ILC_PetAlias`, `ILC_TIF_Pet`.
+`tools\af_templates.json` caches the Animal Followers template records, so the build does not need that mod.
+
+---
+
+# IamLoveCreature — CK Setup (v1 test: "Hey Hello")
+
+Requires: SKSE64, SkyUI 5.x. (Standalone; it does not need SexLab Aroused Creatures as a master and works alongside it.)
+
+## ⭐ The ESP is generated — no CK work needed
+
+`IamLoveCreature.esp` and `SEQ\IamLoveCreature.seq` are built by `tools\build_esp.py`, which uses the Claude skill
+`skyrim-esp-writer`. They contain everything that the CK steps below describe. To rebuild after changing the script:
+
+```
+python tools\build_esp.py
+```
+
+Install layout (MO2 mod folder or `Data\`):
+```
+IamLoveCreature.esp
+SEQ\IamLoveCreature.seq
+Scripts\ILC_Main.pex, ILC_CreatureAlias.pex, ILC_PlayerAlias.pex, ILC_TIF_HeyHello.pex, ILC_Config.pex
+Source\Scripts\*.psc   (optional)
+```
+FormIDs: ILC_DialogueQuest 0800, ILC_MCMQuest 0801, ILC_ForceGreetPackage 0802, ILC_HelloBranch 0803,
+ILC_HelloTopic 0804, ILC_HelloReply 0805, ILC_DialogueView 0806, INFO "Hey Hello" 0807, INFO "..." 0808.
+
+Before the first in-game test, open the plugin in SSEEdit and run **Check for Errors** once.
+
+The CK steps below remain as a reference for what the plugin contains, or in case you want to rebuild it by hand.
+
+How it works (same trick SLAC uses for silent creatures): the hotkey puts the creature under the crosshair
+into the `CreatureAlias` ReferenceAlias → the alias's **ForceGreet** package makes it walk to the player and open
+`ILC_HelloTopic` → the creature says **"Hey Hello"**. When the Dialogue Menu closes, the alias is cleared.
+
+## Scripts (`Source/Scripts`)
+| File | Attach to |
+|---|---|
+| `ILC_Main.psc` | Quest `ILC_DialogueQuest` |
+| `ILC_PlayerAlias.psc` | Alias `PlayerAlias` on `ILC_DialogueQuest` |
+| `ILC_CreatureAlias.psc` | Alias `CreatureAlias` on `ILC_DialogueQuest` |
+| `ILC_TIF_HeyHello.psc` | TopicInfo "Hey Hello" (End fragment, optional) |
+| `ILC_Config.psc` | Quest `ILC_MCMQuest` |
+
+Compile includes: vanilla source + SKSE64 source + SkyUI SDK (`SKI_ConfigBase`, `SKI_QuestBase`).
+
+## 1. Quest `ILC_DialogueQuest`
+- Quest Data: **Start Game Enabled** ✔, Run Once ✘, Priority `60`, Type: None.
+- **Quest Aliases**
+  1. `PlayerAlias` — Specific Reference: `PlayerRef` (`00000014`). Script: `ILC_PlayerAlias`.
+  2. `CreatureAlias` — Fill Type: Specific Reference = *none*, flags **Optional** ✔, **Allow Reuse in Quest** ✔.
+     - Alias Package Data → add `ILC_ForceGreetPackage` (step 2).
+     - Script: `ILC_CreatureAlias`.
+- **Scripts** tab → add `ILC_Main`, properties:
+  - `PlayerRef` → PlayerRef (auto-fill)
+  - `CreatureAlias` → CreatureAlias
+  - `ActorTypeNPC` → `ActorTypeNPC` (auto-fill)
+
+## 2. Package `ILC_ForceGreetPackage`
+- Template: **ForceGreet**.
+- Target / Ref: Specific Reference → `PlayerRef`.
+- Topic: `ILC_HelloTopic` (step 3; make the topic first, then come back).
+- Flags (General): **Must Complete** ✔ (optional), keep "Interrupt" defaults.
+
+## 3. Dialogue (on `ILC_DialogueQuest` → Player Dialogue tab)
+1. New Branch `ILC_HelloBranch` (Type: Normal) — starting topic `ILC_HelloTopic`, Topic Text: *(leave empty)*.
+2. In `ILC_HelloTopic` add a Topic Info:
+   - Response text: **`Hey Hello`**
+   - Conditions: `GetIsAliasRef  CreatureAlias == 1` (Run On: **Subject**)
+   - *(optional)* End fragment → type `;` → compile → Advanced tab → **Rename Script** → `ILC_TIF_HeyHello`
+     (it uses `Fragment_0`, so the End fragment must be the first fragment you create).
+   - Link To: `ILC_HelloReply` (step 3).
+3. New topic `ILC_HelloReply` — Topic Text (what the player says): `Hello!`
+   - Info response: `...` (same condition `GetIsAliasRef CreatureAlias == 1`), flag **Goodbye** ✔.
+
+> Creatures usually have no voice files. Without audio, a line can flash past too quickly to read —
+> install **Fuz Ro D-oh** (silent voice) so the subtitle stays on screen.
+
+## 4. Quest `ILC_MCMQuest` (MCM)
+- **Start Game Enabled** ✔.
+- Alias `PlayerAlias` → Specific Reference `PlayerRef`, Script: **`SKI_PlayerLoadGameAlias`**.
+- Script: `ILC_Config`, property `Main` → `ILC_DialogueQuest`.
+
+## In game
+MCM → **IamLoveCreature → Settings**
+- **Mod Enabled** — on/off.
+- **Open Dialogue Hotkey** — default **K**. Look at a creature and press it.
+- **Open Dialogue (Nearest Creature) → OPEN** — test button: close the menu, and the nearest living creature in
+  the cell walks over and says "Hey Hello".
+
+If the notification `IamLoveCreature: Dialogue OK - <name> says Hey Hello` shows, the dialogue is wired correctly.
+Debug log: look for `[IamLoveCreature]` in `Papyrus.0.log`.
