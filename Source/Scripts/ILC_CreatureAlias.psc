@@ -1,5 +1,5 @@
 Scriptname ILC_CreatureAlias extends ReferenceAlias
-{IamLoveCreature - attach to alias "CreatureAlias" (Optional, Allow Reuse in Quest).
+{ILoveCreature - attach to alias "CreatureAlias" (Optional, Allow Reuse in Quest).
 Alias Package Data: ILC_ForceGreetPackage.
 Clears itself when the dialogue closes, or if the creature never reaches the player.}
 
@@ -36,7 +36,7 @@ Event OnUpdate()
 		inDialogue = True
 		Return
 	EndIf
-	Debug.Notification("IamLoveCreature: Creature could not reach you")
+	Debug.Notification("ILoveCreature: Creature could not reach you")
 	(GetOwningQuest() as ILC_Main).CloseDialogue()
 EndEvent
 

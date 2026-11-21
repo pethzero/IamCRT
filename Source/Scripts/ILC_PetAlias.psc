@@ -1,5 +1,5 @@
 Scriptname ILC_PetAlias extends ReferenceAlias
-{IamLoveCreature V.2 - attached to every pet alias (Pet01..Pet50) on ILC_FollowerQuest.
+{ILoveCreature V.2 - attached to every pet alias (Pet01..Pet50) on ILC_FollowerQuest.
 Activation of a pet is blocked: pressing E opens the companion command menu (Talk = creature dialogue).}
 
 Event OnActivate(ObjectReference akActionRef)

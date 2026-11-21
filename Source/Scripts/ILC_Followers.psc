@@ -1,5 +1,5 @@
 Scriptname ILC_Followers extends Quest
-{IamLoveCreature V.2 - creature follower controller (merged from Animal Followers).
+{ILoveCreature V.2 - creature follower controller (merged from Animal Followers).
 Quest ILC_FollowerQuest, priority 40 (lower than ILC/SLAC dialogue quests, so their
 ForceGreet packages always win over the pet Follow/Home/Sandbox packages).
 Alias ids: pets 0..49, home markers 100..149.}
@@ -14,6 +14,13 @@ Faction Property CurrentFollowerFaction Auto ; Skyrim CurrentFollowerFaction (SL
 Static Property XMarker Auto                ; Skyrim XMarker (home markers)
 ILC_Main Property Main Auto                 ; ILC_DialogueQuest (E on a pet opens its dialogue)
 Spell Property CommandPower Auto            ; ILC_PowerCommands (Z power: follow / wait / summon)
+Spell Property TameSpell Auto               ; ILC_TameSpell "Creature Bond" (V.3)
+GlobalVariable Property gDialogueCommands Auto  ; ILC_DialogueCommands: 1 = K (pet commands shown), 0 = Talk
+; V.3.5 companion buffs (60 s, MGEF script ILC_BuffEffect) - used by ILC_Main.GiveReward
+Spell Property BuffAttack Auto
+Spell Property BuffSpeed Auto
+Spell Property BuffDefense Auto
+Spell Property BuffRegen Auto
 
 ; E-menu on a companion (message box like Animal Followers)
 Message Property PetMenu Auto               ; ILC_PetMenu
@@ -53,6 +60,10 @@ bool[] dActBlocked       ; v2: activation state before taming
 Form[] raceOverrides     ; races whose CantOpenDoors flag we cleared
 int raceOverrideCount = 0
 
+; Nether's Follower Framework (soft dependency, resolved on every load)
+Quest nffController       ; nwsFollowerFramework.esp:00434F nwsFollowerController
+MiscObject nffToken       ; nwsFollowerFramework.esp:1CFC8D nwsIgnoreToken (NFF auto-import skips actors carrying it)
+
 ; history ring buffer
 string[] histText
 int histHead = 0
@@ -63,7 +74,7 @@ import Utility
 ; ---------------------------------------------------------------- basics
 function dtrace(string s)
 	if DebugLog
-		Debug.Trace("[IamLoveCreature/Followers] " + s)
+		Debug.Trace("[ILoveCreature/Followers] " + s)
 	endif
 endfunction
 
@@ -117,7 +128,11 @@ function DoUpdate()
 	if CommandPower && !PlayerRef.HasSpell(CommandPower)
 		PlayerRef.AddSpell(CommandPower, false)
 	endif
+	if TameSpell && !PlayerRef.HasSpell(TameSpell)
+		PlayerRef.AddSpell(TameSpell, true)
+	endif
 	ReApplyDoorOverrides()
+	NFFMaintenance()
 	RegisterForMenu("Loading Menu")
 	dtrace("maintenance done, pets: " + actorCount)
 endfunction
@@ -247,6 +262,7 @@ int function TamePet(Actor a)
 	a.SetActorValue("Aggression", 0.0)
 	a.SetActorValue("WaitingForPlayer", 0.0)
 	a.BlockActivation(true)
+	NFFIgnore(a, true)              ; before SetPlayerTeammate, or NFF auto-imports it into its own slots
 
 	tracked[slot] = a
 	actorCount += 1
@@ -263,6 +279,24 @@ int function TamePet(Actor a)
 	endif
 	dtrace("tamed " + a + " slot " + slot)
 	return slot
+endfunction
+
+; TamePet + notification + make sure it really stops fighting (spell / dialogue / Mate)
+int function TameWithMessage(Actor a)
+	if Main && Main.Peace
+		Main.Peace.RestorePeace(a)    ; V.4: give back the real aggression / faction before taming stores them
+	endif
+	int r = TamePet(a)
+	if r > -1
+		a.StopCombat()
+		a.StopCombatAlarm()
+		Debug.Notification(a.GetDisplayName() + " is now your companion")
+	elseif r == -2
+		Debug.Notification(a.GetDisplayName() + " is already your companion")
+	elseif r == -3
+		Debug.Notification("You can't have more companions (max " + SlotLimit + ")")
+	endif
+	return r
 endfunction
 
 bool function IsOwnedByOther(Actor a)
@@ -296,6 +330,8 @@ bool function ReleasePet(Actor a, string reason = "Released")
 endfunction
 
 function _Cleanup(Actor a, int slot)
+	NFFRemove(a)                    ; free a NFF slot if NFF grabbed it (before we restore aggression etc.)
+	NFFIgnore(a, false)
 	a.SetPlayerTeammate(false, false)
 	a.SetActorValue("WaitingForPlayer", 0.0)
 	a.RemoveFromFaction(PetFaction)
@@ -317,8 +353,9 @@ function _Cleanup(Actor a, int slot)
 endfunction
 
 ; ---------------------------------------------------------------- E menu
-; buttons: 0 Follow me, 1 Stop following, 2 Wait here, 3 Let's go, 4 Make your home here,
-;          5 Forget your home, 6 Ride, 7 Talk, 8 Release, 9 Nothing
+; "Command Creature" buttons (V.3, max 10 in a message box):
+;   0 Follow, 1 Mate, 2 Wait, 3 Let's go, 4 Dismiss, 5 Make your home here, 6 Ride, 7 Release, 8 Talk, 9 Cancel
+; ("Forget your home" is in the K dialogue and the MCM)
 function OpenPetMenu(Actor a)
 	if _menuOpen || !IsPet(a)
 		return
@@ -332,32 +369,34 @@ function OpenPetMenu(Actor a)
 	menuAlias.ForceRefTo(a)
 
 	int b = PetMenu.Show()
+	menuAlias.Clear()
+	_menuOpen = false
 	if b == 0
 		SetFollow(a, true)
 	elseif b == 1
-		SetFollow(a, false)
+		Main.OpenMateDialogue(a)           ; dialogue with the 7 mate choices
 	elseif b == 2
 		SetWait(a, true)
 	elseif b == 3
 		SetWait(a, false)
 	elseif b == 4
+		SetFollow(a, false)                ; Dismiss = stop following (goes home / idles)
+	elseif b == 5
 		SetHome(a, true)
 		Debug.Notification(a.GetDisplayName() + " will live here when it is not following you")
-	elseif b == 5
-		SetHome(a, false)
 	elseif b == 6
 		a.Activate(PlayerRef, true)      ; default activation = mount
 	elseif b == 7
-		Main.TryOpenDialogue(a)
-	elseif b == 8
+		menuAlias.ForceRefTo(a)
 		if ReleaseConfirm.Show() == 0
 			if ReleasePet(a)
 				Debug.Notification(a.GetDisplayName() + " is free again")
 			endif
 		endif
+		menuAlias.Clear()
+	elseif b == 8
+		Main.TryOpenDialogue(a, false)     ; Talk = plain greeting, no pet commands
 	endif
-	menuAlias.Clear()
-	_menuOpen = false
 endfunction
 
 ; ---------------------------------------------------------------- commands
@@ -544,6 +583,65 @@ function ReApplyDoorOverrides()
 	endwhile
 endfunction
 
+; ---------------------------------------------------------------- Nether's Follower Framework
+; NFF's auto-import quest takes every actor with GetPlayerTeammate == 1 unless it carries nwsIgnoreToken.
+; Our pets get the token; pets NFF already grabbed (older saves) are taken out of its slots on load.
+function NFFMaintenance()
+	nffController = none
+	nffToken = none
+	if Game.GetModByName("nwsFollowerFramework.esp") == 255
+		return
+	endif
+	nffController = Game.GetFormFromFile(0x00434F, "nwsFollowerFramework.esp") as Quest
+	nffToken = Game.GetFormFromFile(0x1CFC8D, "nwsFollowerFramework.esp") as MiscObject
+	if !nffToken
+		return
+	endif
+	int i = SlotLimit
+	while i
+		i -= 1
+		Actor a = tracked[i]
+		if a && !a.IsDead() && a.GetItemCount(nffToken) == 0
+			NFFIgnore(a, true)
+			NFFDetach(a)
+		endif
+	endwhile
+endfunction
+
+function NFFIgnore(Actor a, bool ignore)
+	if !nffToken || !a
+		return
+	endif
+	if ignore
+		if a.GetItemCount(nffToken) == 0
+			a.AddItem(nffToken, 1, true)
+		endif
+	else
+		a.RemoveItem(nffToken, a.GetItemCount(nffToken), true)
+	endif
+endfunction
+
+; NFF RemoveFollower(actor, iMessage -1 = no message, iSayLine 0 = right now). No-op if the actor is not in a NFF slot.
+function NFFRemove(Actor a)
+	nwsFollowerControllerScript nff = nffController as nwsFollowerControllerScript
+	if nff && a
+		nff.RemoveFollower(a, -1, 0)
+	endif
+endfunction
+
+; take a pet out of NFF but keep it as OUR companion (NFF dismissal clears teammate/waiting)
+function NFFDetach(Actor a)
+	bool wasFollowing = a.IsPlayerTeammate()
+	bool wasWaiting = IsActorWaiting(a)
+	NFFRemove(a)
+	a.SetActorValue("Aggression", 0.0)
+	_SetFollow(a, wasFollowing)
+	if wasFollowing && wasWaiting
+		SetWait(a, true)
+	endif
+	dtrace("detached from NFF: " + a)
+endfunction
+
 ; ---------------------------------------------------------------- uninstall
 function ReleaseAll()
 	int i = SlotLimit
@@ -556,6 +654,9 @@ function ReleaseAll()
 	SetDoorOverride(false)
 	if CommandPower
 		PlayerRef.RemoveSpell(CommandPower)
+	endif
+	if TameSpell
+		PlayerRef.RemoveSpell(TameSpell)
 	endif
 endfunction
 

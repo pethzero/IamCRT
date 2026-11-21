@@ -1,18 +1,12 @@
 Scriptname ILC_TIF_Pet Extends TopicInfo Hidden
-{IamLoveCreature V.2 - pet command fragments (one function per dialogue line).}
+{ILoveCreature V.2 - pet command fragments (one function per dialogue line).}
 
 ILC_Followers Function F()
 	Return (GetOwningQuest() as ILC_Main).Followers
 EndFunction
 
 Function Fragment_Tame(ObjectReference akSpeakerRef)
-	Actor a = akSpeakerRef as Actor
-	Int r = F().TamePet(a)
-	If r > -1
-		Debug.Notification(a.GetDisplayName() + " is now your companion")
-	ElseIf r == -3
-		Debug.Notification("You can't have more companions (max " + F().GetSlotLimit() + ")")
-	EndIf
+	F().TameWithMessage(akSpeakerRef as Actor)
 EndFunction
 
 Function Fragment_Follow(ObjectReference akSpeakerRef)
@@ -50,6 +44,20 @@ Function Fragment_Release(ObjectReference akSpeakerRef)
 	If F().ReleasePet(a)
 		Debug.Notification(a.GetDisplayName() + " is free again")
 	EndIf
+EndFunction
+
+; "I want to check you." - show its health
+Function Fragment_Check(ObjectReference akSpeakerRef)
+	Actor a = akSpeakerRef as Actor
+	Int hp = (a.GetActorValuePercentage("Health") * 100.0) as Int
+	Debug.Notification(a.GetDisplayName() + " - Health " + (a.GetActorValue("Health") as Int) + " / " + (a.GetActorValueMax("Health") as Int) + " (" + hp + "%)")
+EndFunction
+
+; "I will heal you." - restore health to 100%
+Function Fragment_Heal(ObjectReference akSpeakerRef)
+	Actor a = akSpeakerRef as Actor
+	a.RestoreActorValue("Health", a.GetActorValueMax("Health"))
+	Debug.Notification(a.GetDisplayName() + " is fully healed")
 EndFunction
 
 Function Fragment_Ride(ObjectReference akSpeakerRef)

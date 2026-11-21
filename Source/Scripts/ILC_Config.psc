@@ -1,7 +1,7 @@
 Scriptname ILC_Config extends SKI_ConfigBase
-{IamLoveCreature - MCM. Attach to quest ILC_MCMQuest (Start Game Enabled)
+{ILoveCreature - MCM. Attach to quest ILC_MCMQuest (Start Game Enabled)
 with a PlayerRef alias that has SKI_PlayerLoadGameAlias.
-V.2 pages: Settings, Follower Status, Slot History, Follower Settings.}
+V.2 pages: Settings, Follower Status, Slot History, Follower Settings. V.3.7 Buffs. V.4 Peace.}
 
 ILC_Main Property Main Auto             ; -> ILC_DialogueQuest
 ILC_Followers Property Followers Auto   ; -> ILC_FollowerQuest
@@ -38,21 +38,23 @@ Actor pendingGoTo
 ; Setup
 ; ---------------------------------------------------------------
 Event OnConfigInit()
-	ModName = "IamLoveCreature"
-	Pages = new String[4]
+	ModName = "ILoveCreature"
+	Pages = new String[6]
 	Pages[0] = "Settings"
 	Pages[1] = "Follower Status"
 	Pages[2] = "Slot History"
 	Pages[3] = "Follower Settings"
+	Pages[4] = "Buffs"
+	Pages[5] = "Peace"
 	pendingCmd = new Int[128]
 EndEvent
 
 Int Function GetVersion()
-	Return 2
+	Return 4
 EndFunction
 
 Event OnVersionUpdate(Int newVersion)
-	If CurrentVersion < 2
+	If CurrentVersion < 4      ; V.3.7 adds the "Buffs" page, V.4 the "Peace" page
 		OnConfigInit()
 	EndIf
 EndEvent
@@ -130,6 +132,10 @@ Event OnPageReset(String page)
 
 	If page == "" || page == "Settings"
 		PageSettings()
+	ElseIf page == "Buffs"
+		PageBuffs()
+	ElseIf page == "Peace"
+		PagePeace()
 	ElseIf !Followers || !Followers.IsInitialized()
 		SetCursorFillMode(TOP_TO_BOTTOM)
 		AddHeaderOption("Follower system is not running")
@@ -171,8 +177,8 @@ Function PageStatus()
 	If !a
 		AddMenuOption("Companion", "None", OPTION_FLAG_DISABLED)
 		AddTextOption("No creature companions yet.", "", OPTION_FLAG_DISABLED)
-		AddTextOption("Look at a creature, press the dialogue", "", OPTION_FLAG_DISABLED)
-		AddTextOption("hotkey and choose 'Come with me.'", "", OPTION_FLAG_DISABLED)
+		AddTextOption("Cast 'Creature Bond' on a creature, or", "", OPTION_FLAG_DISABLED)
+		AddTextOption("press the dialogue hotkey: 'I need a follower.'", "", OPTION_FLAG_DISABLED)
 		Return
 	EndIf
 
@@ -297,6 +303,70 @@ Function PageFollowerSettings()
 	AddEmptyOption()
 	AddHeaderOption("Maintenance")
 	AddTextOptionST("ILC_ReleaseAll", "Release all companions", "Release")
+EndFunction
+
+; ---- Buffs: what each mate choice gives, who receives it, what is active now
+Function PageBuffs()
+	SetCursorFillMode(TOP_TO_BOTTOM)
+	SetCursorPosition(0)
+	; short label + short value per row (long text overlaps in SkyUI); full line in the info text
+	AddHeaderOption("Mate Rewards (" + (Main.BuffMinutes as Int) + " min, after the scene)")
+	AddTextOptionST("ILC_RwJoin", "I will do it.", "Join + restore")
+	AddTextOptionST("ILC_RwHeal", "I will heal you.", "Restore all")
+	AddTextOptionST("ILC_RwRough", "Rough", "Attack +" + (Main.BuffAttackPct as Int) + "%")
+	AddTextOptionST("ILC_RwDirty", "Dirty", "Speed +" + (Main.SpeedValue() as Int) + "%")
+	AddTextOptionST("ILC_RwBitch", "Bitch", "Defense +" + (Main.BuffDefensePct as Int) + "%")
+	AddTextOptionST("ILC_RwOral", "Oral", "Regen " + Main.FmtDec(Main.BuffRegenPct) + "%/s")
+	AddTextOptionST("ILC_RwGroup", "Group (whole pack)", "All 4 + heal")
+
+	AddEmptyOption()
+	AddHeaderOption("Who Gets the Buffs")
+	AddToggleOptionST("ILC_BuffFollower", "Your companion (and the pack)", Main.BuffFollower)
+	AddToggleOptionST("ILC_BuffPlayer", "You (player)", Main.BuffPlayer)
+	AddEmptyOption()
+	AddHeaderOption("Active on You")
+	AddBuffRow(PlayerRef)
+
+	SetCursorPosition(1)
+	AddHeaderOption("Buff Settings")
+	AddInputOptionST("ILC_InMinutes", "Duration (minutes, 1-60)", (Main.BuffMinutes as Int) + " min")
+	AddSliderOptionST("ILC_SlAttack", "Attack (weapons + magic)", Main.BuffAttackPct, "+{0}%")
+	AddSliderOptionST("ILC_SlSpeed", "Speed (max 30%)", Main.SpeedValue(), "+{0}%")
+	AddSliderOptionST("ILC_SlDefense", "Defense (armor)", Main.BuffDefensePct, "+{0}%")
+	AddSliderOptionST("ILC_SlRegen", "Health regeneration", Main.BuffRegenPct, "{1}% / s")
+	AddTextOptionST("ILC_BuffDefaults", "Balanced defaults", "RESET")
+	AddEmptyOption()
+	AddHeaderOption("Debug")
+	AddToggleOptionST("ILC_BuffDebug", "Show reward steps on screen", Main.DebugMessages)
+	AddTextOptionST("ILC_BuffClear", "Clear all buffs (fix stuck values)", "CLEAR")
+	Actor a = Followers.GetActorInSlot(selSlot)
+	If a
+		AddEmptyOption()
+		AddHeaderOption("Active on " + a.GetDisplayName())
+		AddBuffRow(a)
+	EndIf
+EndFunction
+
+; ---- slider helper (SkyUI): shared open dialog
+Function OpenSlider(Float value, Float dflt, Float lo, Float hi, Float stepV)
+	SetSliderDialogStartValue(value)
+	SetSliderDialogDefaultValue(dflt)
+	SetSliderDialogRange(lo, hi)
+	SetSliderDialogInterval(stepV)
+EndFunction
+
+Function AddBuffRow(Actor a)
+	AddTextOption("Attack", BuffState(a, Followers.BuffAttack), OPTION_FLAG_DISABLED)
+	AddTextOption("Speed", BuffState(a, Followers.BuffSpeed), OPTION_FLAG_DISABLED)
+	AddTextOption("Defense", BuffState(a, Followers.BuffDefense), OPTION_FLAG_DISABLED)
+	AddTextOption("Regeneration", BuffState(a, Followers.BuffRegen), OPTION_FLAG_DISABLED)
+EndFunction
+
+String Function BuffState(Actor a, Spell s)
+	If a && s && a.HasMagicEffect(s.GetNthEffectMagicEffect(0))
+		Return "Active"
+	EndIf
+	Return "-"
 EndFunction
 
 ; ---------------------------------------------------------------
@@ -433,7 +503,11 @@ Event OnUpdate()
 		Int cmd = pendingCmd[i]
 		If cmd != 0
 			pendingCmd[i] = 0
-			If cmd == 4
+			If cmd == 8
+				Main.ResetPeaceAndGroup()
+			ElseIf cmd == 7
+				Main.ClearAllBuffs()
+			ElseIf cmd == 4
 				Followers.SummonAll(True)
 			ElseIf cmd == 5
 				Followers.SummonAll(False)
@@ -473,7 +547,7 @@ State ILC_ModEnabled
 		ForcePageReset()
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("Enable or disable IamLoveCreature.")
+		SetInfoText("Enable or disable ILoveCreature.")
 	EndEvent
 EndState
 
@@ -590,6 +664,195 @@ State ILC_Debug
 	EndEvent
 EndState
 
+; ---------------------------------------------------------------
+; Buffs page
+; ---------------------------------------------------------------
+State ILC_BuffFollower
+	Event OnSelectST()
+		Main.BuffFollower = !Main.BuffFollower
+		SetToggleOptionValueST(Main.BuffFollower)
+	EndEvent
+	Event OnDefaultST()
+		Main.BuffFollower = True
+		SetToggleOptionValueST(True)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Mate rewards go to the creature (Group: every creature of the scene and your following companions nearby).")
+	EndEvent
+EndState
+
+State ILC_BuffPlayer
+	Event OnSelectST()
+		Main.BuffPlayer = !Main.BuffPlayer
+		SetToggleOptionValueST(Main.BuffPlayer)
+	EndEvent
+	Event OnDefaultST()
+		Main.BuffPlayer = False
+		SetToggleOptionValueST(False)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("You receive the same mate rewards as your companion.")
+	EndEvent
+EndState
+
+; reward rows: info text only (full dialogue line + full effect)
+State ILC_RwJoin
+	Event OnHighlightST()
+		SetInfoText("\"I will do it.\" (creature that is not your companion yet) - it joins you, then " + Main.RewardName(Main.REWARD_HEAL) + ".")
+	EndEvent
+EndState
+State ILC_RwHeal
+	Event OnHighlightST()
+		SetInfoText("\"I will heal you.\" - " + Main.RewardName(Main.REWARD_HEAL) + ".")
+	EndEvent
+EndState
+State ILC_RwRough
+	Event OnHighlightST()
+		SetInfoText("\"Do what you will with me.\" - " + Main.RewardName(Main.REWARD_ATTACK) + ".")
+	EndEvent
+EndState
+State ILC_RwDirty
+	Event OnHighlightST()
+		SetInfoText("\"Let's do something dirty.\" - " + Main.RewardName(Main.REWARD_SPEED) + ".")
+	EndEvent
+EndState
+State ILC_RwBitch
+	Event OnHighlightST()
+		SetInfoText("\"Make me your bitch.\" - " + Main.RewardName(Main.REWARD_DEFENSE) + ".")
+	EndEvent
+EndState
+State ILC_RwOral
+	Event OnHighlightST()
+		SetInfoText("\"I'll do something special for you.\" - " + Main.RewardName(Main.REWARD_REGEN) + ".")
+	EndEvent
+EndState
+State ILC_RwGroup
+	Event OnHighlightST()
+		SetInfoText("\"Maybe we can find some friends.\" - the creature, its friends and your companions nearby get " + Main.RewardName(Main.REWARD_GROUP) + ".")
+	EndEvent
+EndState
+
+State ILC_InMinutes
+	Event OnInputOpenST()
+		SetInputDialogStartText((Main.BuffMinutes as Int) as String)
+	EndEvent
+	Event OnInputAcceptST(String s)
+		Float v = s as Float
+		If v <= 0.0
+			ShowMessage("Type a number of minutes from 1 to 60.", False)
+			Return
+		EndIf
+		Main.SetBuffMinutes(v)
+		ForcePageReset()
+	EndEvent
+	Event OnDefaultST()
+		Main.SetBuffMinutes(3.0)
+		ForcePageReset()
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Type how long every mate buff lasts: 1 - 60 minutes (real time). Values outside are clamped. Balanced: 3.")
+	EndEvent
+EndState
+
+State ILC_SlAttack
+	Event OnSliderOpenST()
+		OpenSlider(Main.BuffAttackPct, 25.0, 5.0, 100.0, 5.0)
+	EndEvent
+	Event OnSliderAcceptST(Float v)
+		Main.BuffAttackPct = v
+		ForcePageReset()
+	EndEvent
+	Event OnDefaultST()
+		Main.BuffAttackPct = 25.0
+		ForcePageReset()
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("\"Do what you will with me.\" - extra damage for weapons / claws / bites AND damage spells. Balanced: 25%.")
+	EndEvent
+EndState
+
+State ILC_SlSpeed
+	Event OnSliderOpenST()
+		OpenSlider(Main.SpeedValue(), 10.0, 5.0, 30.0, 5.0)
+	EndEvent
+	Event OnSliderAcceptST(Float v)
+		Main.BuffSpeedPct = v
+		ForcePageReset()
+	EndEvent
+	Event OnDefaultST()
+		Main.BuffSpeedPct = 10.0
+		ForcePageReset()
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("\"Let's do something dirty.\" - movement speed, max 30% (more makes followers overshoot and stutter). Balanced: 10%.")
+	EndEvent
+EndState
+
+State ILC_SlDefense
+	Event OnSliderOpenST()
+		OpenSlider(Main.BuffDefensePct, 30.0, 5.0, 100.0, 5.0)
+	EndEvent
+	Event OnSliderAcceptST(Float v)
+		Main.BuffDefensePct = v
+		ForcePageReset()
+	EndEvent
+	Event OnDefaultST()
+		Main.BuffDefensePct = 30.0
+		ForcePageReset()
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("\"Make me your bitch.\" - extra armor (+% of current armor, at least 1.5 x this value in points). Balanced: 30%.")
+	EndEvent
+EndState
+
+State ILC_SlRegen
+	Event OnSliderOpenST()
+		OpenSlider(Main.BuffRegenPct, 0.5, 0.1, 3.0, 0.1)
+	EndEvent
+	Event OnSliderAcceptST(Float v)
+		Main.BuffRegenPct = v
+		ForcePageReset()
+	EndEvent
+	Event OnDefaultST()
+		Main.BuffRegenPct = 0.5
+		ForcePageReset()
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("\"I'll do something special for you.\" - % of max health restored every second, also in combat. Balanced: 0.5% (90% over 3 minutes).")
+	EndEvent
+EndState
+
+State ILC_BuffDefaults
+	Event OnSelectST()
+		Main.ResetBuffDefaults()
+		ForcePageReset()
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("3 min, Attack +25% (weapons + magic), Speed +10%, Defense +30%, Regen 0.5%/s. Group gets all four.")
+	EndEvent
+EndState
+
+State ILC_BuffDebug
+	Event OnSelectST()
+		Main.DebugMessages = !Main.DebugMessages
+		SetToggleOptionValueST(Main.DebugMessages)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Shows [ILC] messages: scene started, scene end, reward given, and for every buff OK / applied directly / FAILED.")
+	EndEvent
+EndState
+
+State ILC_BuffClear
+	Event OnSelectST()
+		Queue(125, 7)
+		SetTextOptionValueST("CLOSE MENU")
+		ShowMessage("All ILoveCreature buffs are removed from you and your companions when you close the menu. Values left behind by a lost effect are repaired.", False)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Debug: remove every mate buff and repair attack / speed / armor values that may be stuck.")
+	EndEvent
+EndState
+
 State ILC_ReleaseAll
 	Event OnSelectST()
 		If ShowMessage("Release ALL companions?")
@@ -600,5 +863,182 @@ State ILC_ReleaseAll
 	EndEvent
 	Event OnHighlightST()
 		SetInfoText("Releases every companion and restores door flags. Do this before uninstalling.")
+	EndEvent
+EndState
+
+; ---------------------------------------------------------------
+; V.4 Peace page: G key, peace spells, "I will make it happen for all of you.", debug
+; ---------------------------------------------------------------
+Function PagePeace()
+	ILC_Peace P = Main.Peace
+	SetCursorFillMode(TOP_TO_BOTTOM)
+	If !P
+		AddHeaderOption("Peace system is not running")
+		Return
+	EndIf
+	Int flags = FlagIf(Main.ModEnabled)
+
+	SetCursorPosition(0)
+	AddHeaderOption("Peace (I come in peace.)")
+	AddKeyMapOptionST("ILC_PeaceKey", "Peace hotkey", P.PeaceKey, OPTION_FLAG_WITH_UNMAP + flags)
+	AddSliderOptionST("ILC_PeaceMinutes", "Peace duration", P.PeaceMinutes, "{0} min")
+	AddSliderOptionST("ILC_PeaceRadius", "Hotkey area", P.PeaceRadius, "{0} units")
+	AddEmptyOption()
+	AddHeaderOption("Spells")
+	AddTextOptionST("ILC_InfoPeaceSpell", "Creature Peace", "Calm")
+	AddTextOptionST("ILC_InfoCallSpell", "Creature Call", "Calm + talk")
+	AddTextOptionST("ILC_PeaceSpellsAdd", "Learn the spells again", "ADD")
+
+	SetCursorPosition(1)
+	AddHeaderOption("Group (all of you)")
+	AddSliderOptionST("ILC_MaxExtra", "Max extra creatures", P.MaxExtra, "{0}")
+	If P.RandomExtra
+		AddTextOptionST("ILC_ExtraMode", "Extra mode", "Random 1-" + P.MaxExtra)
+	Else
+		AddTextOptionST("ILC_ExtraMode", "Extra mode", "Stable " + P.MaxExtra)
+	EndIf
+	AddEmptyOption()
+	AddHeaderOption("Debug")
+	AddToggleOptionST("ILC_PeaceDebug", "Show debug messages", Main.DebugMessages)
+	AddTextOption("Peaceful creatures now", P.PeacefulCount(), OPTION_FLAG_DISABLED)
+	AddTextOption("Group queue", Main.ChainStatus(), OPTION_FLAG_DISABLED)
+	AddTextOptionST("ILC_PeaceReset", "Reset peace + group (fix stuck)", "RESET")
+EndFunction
+
+State ILC_PeaceKey
+	Event OnKeyMapChangeST(Int keyCode, String conflictControl, String conflictName)
+		If keyCode > 0 && conflictControl != ""
+			String msg
+			If conflictName != ""
+				msg = "This key is already mapped to:\n'" + conflictControl + "'\n(" + conflictName + ")\n\nAre you sure you want to continue?"
+			Else
+				msg = "This key is already mapped to:\n'" + conflictControl + "'\n\nAre you sure you want to continue?"
+			EndIf
+			If !ShowMessage(msg, True, "$Yes", "$No")
+				Return
+			EndIf
+		EndIf
+		If keyCode > 0 && keyCode == Main.OpenDialogueKey
+			ShowMessage("This is already the Open Dialogue hotkey.", False)
+			Return
+		EndIf
+		Main.Peace.PeaceKey = keyCode
+		Main.Maintenance()
+		SetKeyMapOptionValueST(keyCode)
+	EndEvent
+	Event OnDefaultST()
+		Main.Peace.PeaceKey = 34
+		Main.Maintenance()
+		SetKeyMapOptionValueST(34)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("You say \"I come in peace.\": every creature around you stops fighting you, then the creature you look at (or the nearest) comes to talk. Extra line: \"I will make it happen for all of you.\" Default: G.")
+	EndEvent
+EndState
+
+State ILC_PeaceMinutes
+	Event OnSliderOpenST()
+		OpenSlider(Main.Peace.PeaceMinutes, 5.0, 1.0, 30.0, 1.0)
+	EndEvent
+	Event OnSliderAcceptST(Float v)
+		Main.Peace.PeaceMinutes = v
+		Main.Peace.ApplyDuration()
+		SetSliderOptionValueST(v, "{0} min")
+	EndEvent
+	Event OnDefaultST()
+		Main.Peace.PeaceMinutes = 5.0
+		Main.Peace.ApplyDuration()
+		SetSliderOptionValueST(5.0, "{0} min")
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("How long a creature stays peaceful (Creature Peace, Creature Call and the hotkey). Real minutes. Default: 5.")
+	EndEvent
+EndState
+
+State ILC_PeaceRadius
+	Event OnSliderOpenST()
+		OpenSlider(Main.Peace.PeaceRadius, 2500.0, 500.0, 6000.0, 250.0)
+	EndEvent
+	Event OnSliderAcceptST(Float v)
+		Main.Peace.PeaceRadius = v
+		SetSliderOptionValueST(v, "{0} units")
+	EndEvent
+	Event OnDefaultST()
+		Main.Peace.PeaceRadius = 2500.0
+		SetSliderOptionValueST(2500.0, "{0} units")
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Radius of the peace hotkey around you. 2500 units ~ 35 m. Default: 2500.")
+	EndEvent
+EndState
+
+State ILC_InfoPeaceSpell
+	Event OnHighlightST()
+		SetInfoText("Creature Peace (aimed): the creature stops fighting you and your companions for the peace duration. No dialogue.")
+	EndEvent
+EndState
+
+State ILC_InfoCallSpell
+	Event OnHighlightST()
+		SetInfoText("Creature Call (aimed): peace + the creature comes to talk. You see the normal dialogue of every mod, \"I will do it.\" is added at the end.")
+	EndEvent
+EndState
+
+State ILC_PeaceSpellsAdd
+	Event OnSelectST()
+		Main.Peace.Maintenance()
+		ShowMessage("Creature Peace and Creature Call are in your spell list.", False)
+	EndEvent
+EndState
+
+State ILC_MaxExtra
+	Event OnSliderOpenST()
+		OpenSlider(Main.Peace.MaxExtra, 3.0, 1.0, 5.0, 1.0)
+	EndEvent
+	Event OnSliderAcceptST(Float v)
+		Main.Peace.MaxExtra = v as Int
+		ForcePageReset()
+	EndEvent
+	Event OnDefaultST()
+		Main.Peace.MaxExtra = 3
+		ForcePageReset()
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("\"I will make it happen for all of you.\": how many creatures join besides the one you talk to (1 - 5). SexLab allows 4 creatures per scene - the rest get the next scene. Default: 3.")
+	EndEvent
+EndState
+
+State ILC_ExtraMode
+	Event OnSelectST()
+		Main.Peace.RandomExtra = !Main.Peace.RandomExtra
+		ForcePageReset()
+	EndEvent
+	Event OnDefaultST()
+		Main.Peace.RandomExtra = False
+		ForcePageReset()
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Stable: always Max extra creatures (if that many are nearby). Random: a random number from 1 to Max extra every time.")
+	EndEvent
+EndState
+
+State ILC_PeaceDebug
+	Event OnSelectST()
+		Main.DebugMessages = !Main.DebugMessages
+		SetToggleOptionValueST(Main.DebugMessages)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Shows [ILC] messages: peace start / end per creature, hotkey scan, group queue steps (also the Buffs debug). Always written to Papyrus.0.log.")
+	EndEvent
+EndState
+
+State ILC_PeaceReset
+	Event OnSelectST()
+		Queue(124, 8)
+		SetTextOptionValueST("CLOSE MENU")
+		ShowMessage("When you close the menu: the group queue stops, the creature dialogue is cleared and every peaceful creature gets its original aggression and factions back.", False)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Debug: use this if a creature stays friendly, the group scenes do not continue, or the hotkey stops working.")
 	EndEvent
 EndState

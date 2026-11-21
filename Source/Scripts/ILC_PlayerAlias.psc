@@ -1,5 +1,5 @@
 Scriptname ILC_PlayerAlias extends ReferenceAlias
-{IamLoveCreature - attach to alias "PlayerAlias" (Specific Reference = PlayerRef) on ILC_DialogueQuest.
+{ILoveCreature - attach to alias "PlayerAlias" (Specific Reference = PlayerRef) on ILC_DialogueQuest.
 Re-registers the hotkey and cleans up on every game load.}
 
 Event OnPlayerLoadGame()

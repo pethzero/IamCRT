@@ -1,5 +1,5 @@
 Scriptname ILC_PowerEffect extends ActiveMagicEffect
-{IamLoveCreature V.2 - "Companion Commands" power (Z): group commands for creature companions.}
+{ILoveCreature V.2 - "Companion Commands" power (Z): group commands for creature companions.}
 
 ILC_Followers Property Followers Auto
 Message Property CommandMsg Auto      ; buttons: Follow me / Wait here / Summon followers / Summon all / Cancel

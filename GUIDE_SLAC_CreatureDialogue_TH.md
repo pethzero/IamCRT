@@ -1,4 +1,4 @@
-# คู่มือ: SLAC ทำ Creature Dialogue ยังไง → เอามาทำใน IamLoveCreature
+# คู่มือ: SLAC ทำ Creature Dialogue ยังไง → เอามาทำใน ILoveCreature
 
 ที่มา: อ่านตรงจาก `SexLab Aroused Creatures.esp` (v04.18) ด้วยตัว parse ESP และอ่านคู่กับ source `.psc` ของ SLAC
 FormID ในเอกสารนี้อ้างตามไฟล์ ESP (index `05` = ตัว SLAC เอง)
@@ -142,9 +142,9 @@ SLAC แก้โดยให้ **creature เป็นฝ่าย ForceGreet 
 
 ---
 
-## 4. เอามาใช้กับ IamLoveCreature: เทียบทีละตัว
+## 4. เอามาใช้กับ ILoveCreature: เทียบทีละตัว
 
-| SLAC | IamLoveCreature | หมายเหตุ |
+| SLAC | ILoveCreature | หมายเหตุ |
 |---|---|---|
 | `slac_CreatureDialogue` (QUST) | `ILC_DialogueQuest` | ตั้ง Priority **60–100** และใส่ Dialogue Conditions แบบ 3.1 (อย่างน้อย `HasKeyword ActorTypeNPC != 1`, `GetDead != 1`, `IsChild != 1`) |
 | alias `ForcedRef` | alias `CreatureAlias` | Optional + **Allow Reuse in Quest** และใส่ package ในช่อง Alias Package Data |
