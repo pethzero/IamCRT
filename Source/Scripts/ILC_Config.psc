@@ -502,7 +502,9 @@ Event OnUpdate()
 		Int cmd = pendingCmd[i]
 		If cmd != 0
 			pendingCmd[i] = 0
-			If cmd == 9
+			If cmd == 10
+				Main.Peace.TestPeaceAnim()
+			ElseIf cmd == 9
 				Main.UninstallAll()
 			ElseIf cmd == 8
 				Main.ResetPeaceAndGroup()
@@ -894,6 +896,9 @@ Function PeaceLeft()
 	AddKeyMapOptionST("ILC_PeaceKey", "Peace hotkey", P.PeaceKey, OPTION_FLAG_WITH_UNMAP + FlagIf(Main.ModEnabled))
 	AddSliderOptionST("ILC_PeaceMinutes", "Peace duration", P.PeaceMinutes, "{0} min")
 	AddSliderOptionST("ILC_PeaceRadius", "Hotkey area", P.PeaceRadius, "{0} units")
+	AddToggleOptionST("ILC_PeaceAnim", "Play animation on hotkey", P.PeaceAnim)
+	AddSliderOptionST("ILC_PeaceAnimTime", "Animation time", P.PeaceAnimSeconds, "{1} s", FlagIf(P.PeaceAnim))
+	AddTextOptionST("ILC_PeaceAnimTest", "Play the animation now", "PLAY")
 	AddEmptyOption()
 	AddHeaderOption("Spells")
 	AddTextOptionST("ILC_InfoPeaceSpell", "Creature Peace", "Calm")
@@ -1046,6 +1051,48 @@ State ILC_ExtraMode
 	EndEvent
 	Event OnHighlightST()
 		SetInfoText("Stable: always Max extra creatures (if that many are nearby). Random: a random number from 2 to Max extra every time.")
+	EndEvent
+EndState
+
+State ILC_PeaceAnim
+	Event OnSelectST()
+		Main.Peace.PeaceAnim = !Main.Peace.PeaceAnim
+		ForcePageReset()
+	EndEvent
+	Event OnDefaultST()
+		Main.Peace.PeaceAnim = True
+		ForcePageReset()
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("When you press the peace hotkey you play the \"I come in peace.\" animation (SRB_ILoveCreature_F_01, needs FNIS / Nemesis run). The creature comes to talk when it ends. Default: on.")
+	EndEvent
+EndState
+
+State ILC_PeaceAnimTime
+	Event OnSliderOpenST()
+		OpenSlider(Main.Peace.PeaceAnimSeconds, 3.0, 1.0, 10.0, 0.5)
+	EndEvent
+	Event OnSliderAcceptST(Float v)
+		Main.Peace.PeaceAnimSeconds = v
+		SetSliderOptionValueST(v, "{1} s")
+	EndEvent
+	Event OnDefaultST()
+		Main.Peace.PeaceAnimSeconds = 3.0
+		SetSliderOptionValueST(3.0, "{1} s")
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("How long the animation plays before you go back to normal and the creature comes to talk. Default: 3 s.")
+	EndEvent
+EndState
+
+State ILC_PeaceAnimTest
+	Event OnSelectST()
+		Queue(122, 10)
+		SetTextOptionValueST("CLOSE MENU")
+		ShowMessage("Close the menu: the animation plays once (third person view to see it).", False)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Test the animation. If you only see a T-pose or nothing, run FNIS / Nemesis again.")
 	EndEvent
 EndState
 

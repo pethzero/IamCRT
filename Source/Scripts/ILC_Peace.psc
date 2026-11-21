@@ -27,6 +27,9 @@ Float Property PeaceMinutes = 5.0 Auto Hidden   ; 1 - 30 real minutes
 Float Property PeaceRadius = 2500.0 Auto Hidden ; G area
 Int Property MaxExtra = 3 Auto Hidden           ; 2 - 5 extra creatures for "you all happy"
 Bool Property RandomExtra = False Auto Hidden   ; False = Stable (always MaxExtra), True = Random 2..MaxExtra
+Bool Property PeaceAnim = True Auto Hidden        ; V.4.6 play the gesture on the hotkey
+Float Property PeaceAnimSeconds = 3.0 Auto Hidden ; how long before the dialogue opens (1 - 10)
+String Property PEACE_ANIM = "SRB_ILoveCreature_F_01" AutoReadOnly
 Int Property MaxExtraLimit = 5 AutoReadOnly
 Int Property MinExtra = 2 AutoReadOnly
 
@@ -204,6 +207,8 @@ Function OnPeaceKey()
 	EndIf
 	busy = True
 	Debug.Notification("I come in peace.")
+	Float animStart = Utility.GetCurrentRealTime()
+	Bool anim = PeaceAnim && StartPeaceAnim()
 
 	Actor[] near = MiscUtil.ScanCellNPCs(PlayerRef, PeaceRadius)
 	Actor[] calmed = PapyrusUtil.ActorArray(0)
@@ -225,6 +230,13 @@ Function OnPeaceKey()
 		Debug.Notification(calmed.Length + " creature(s) will not fight you for " + (PeaceMinutes as Int) + " min")
 	EndIf
 	Main.Dbg("G: " + near.Length + " actors in " + (PeaceRadius as Int) + ", " + calmed.Length + " calmed")
+	If anim                        ; let the gesture finish before the creature comes to talk
+		Float left = PeaceAnimSeconds - (Utility.GetCurrentRealTime() - animStart)
+		If left > 0.0
+			Utility.Wait(left)
+		EndIf
+		StopPeaceAnim()
+	EndIf
 
 	; dialogue: creature under the crosshair, otherwise the nearest creature around
 	Actor target = Game.GetCurrentCrosshairRef() as Actor
@@ -237,6 +249,36 @@ Function OnPeaceKey()
 		Debug.Notification("No creature around you")
 	EndIf
 	busy = False
+EndFunction
+
+; ---------------------------------------------------------------
+; V.4.6 "I come in peace." gesture (FNIS: Meshes\actors\character\animations\ILoveCreature)
+; ---------------------------------------------------------------
+Bool Function StartPeaceAnim()
+	If PlayerRef.IsOnMount() || PlayerRef.IsSwimming() || PlayerRef.GetSitState() != 0 || PlayerRef.IsInKillMove()
+		Return False
+	EndIf
+	If PlayerRef.IsWeaponDrawn()
+		PlayerRef.SheatheWeapon()
+		Utility.Wait(1.0)
+	EndIf
+	Debug.SendAnimationEvent(PlayerRef, PEACE_ANIM)
+	Main.Dbg("Peace animation " + PEACE_ANIM)
+	Return True
+EndFunction
+
+Function StopPeaceAnim()
+	Debug.SendAnimationEvent(PlayerRef, "IdleForceDefaultState")
+EndFunction
+
+; MCM "Play the animation now" (runs after the menu closes)
+Function TestPeaceAnim()
+	If StartPeaceAnim()
+		Utility.Wait(PeaceAnimSeconds)
+		StopPeaceAnim()
+	Else
+		Debug.Notification("ILoveCreature: the animation cannot play now (mounted, swimming, sitting...)")
+	EndIf
 EndFunction
 
 Actor Function NearestCreature(Actor[] list)

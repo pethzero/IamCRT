@@ -6,7 +6,7 @@ Scriptname ILC_TIF_HeyHello Extends TopicInfo Hidden
 Function Fragment_0(ObjectReference akSpeakerRef)
 Actor akSpeaker = akSpeakerRef as Actor
 ;BEGIN CODE
-Debug.Notification("ILoveCreature: Dialogue OK - " + akSpeaker.GetDisplayName() + " says Hey Hello")
+Debug.Trace("[ILoveCreature] Dialogue OK - " + akSpeaker.GetDisplayName() + " says Hey Hello")   ; V.4.6: log only, no message on screen
 ;END CODE
 EndFunction
 ;END FRAGMENT
