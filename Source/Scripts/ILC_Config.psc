@@ -924,11 +924,11 @@ Function PeaceRight()
 	EndIf
 	AddEmptyOption()
 	AddHeaderOption("Group (friends / all happy)")
-	AddSliderOptionST("ILC_MaxExtra", "Group size (creatures)", P.GroupSizeShown(), "{0} + you")
+	AddSliderOptionST("ILC_MaxExtra", "Creatures in group scene", P.GroupSizeShown(), "{0} creatures + you")
 	If P.RandomExtra
-		AddTextOptionST("ILC_ExtraMode", "Group mode", "Random 2-" + P.GroupSizeShown())
+		AddTextOptionST("ILC_ExtraMode", "Group mode", "Random: 2-" + P.GroupSizeShown() + " creatures")
 	Else
-		AddTextOptionST("ILC_ExtraMode", "Group mode", "Stable " + P.GroupSizeShown())
+		AddTextOptionST("ILC_ExtraMode", "Group mode", "Stable: " + P.GroupSizeShown() + " creatures")
 	EndIf
 	AddEmptyOption()
 	AddHeaderOption("Debug")
@@ -1037,7 +1037,7 @@ State ILC_MaxExtra
 		ForcePageReset()
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("How many creatures are in a group scene, the one you talk to included: 2 = 2 creatures + you. Used by \"Maybe we can find some friends.\" and \"I will make you all happy.\" (there they all become your companions). Max 4 (SexLab allows 5 actors). Fewer if not enough fit nearby. Default: 3.")
+		SetInfoText("How many creatures take part in a group scene - you are not counted. Example: 3 = you + 3 creatures (a 4-actor scene in SexLab). The creature you talk to counts as one of them. Used by \"Maybe we can find some friends.\" and \"I will make you all happy.\". 2 - 4 (SexLab allows 5 actors). Fewer if not enough fit nearby. Default: 3.")
 	EndEvent
 EndState
 
@@ -1051,7 +1051,7 @@ State ILC_ExtraMode
 		ForcePageReset()
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("Stable: always Group size creatures (if that many fit nearby). Random: 2 to Group size creatures, new every time.")
+		SetInfoText("Stable: always the number of creatures set above (if that many fit nearby). Random: 2 up to that number, new every time.")
 	EndEvent
 EndState
 
