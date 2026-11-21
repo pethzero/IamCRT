@@ -29,6 +29,7 @@ Int Property MaxExtra = 3 Auto Hidden           ; 2 - 5 extra creatures for "you
 Bool Property RandomExtra = False Auto Hidden   ; False = Stable (always MaxExtra), True = Random 2..MaxExtra
 Bool Property PeaceAnim = True Auto Hidden        ; V.4.6 play the gesture on the hotkey
 Float Property PeaceAnimSeconds = 3.0 Auto Hidden ; how long before the dialogue opens (1 - 10)
+Bool Property MateAnim = True Auto Hidden         ; V.4.7 the same animation before every mate line (happy, dirty, all happy...)
 String Property PEACE_ANIM = "SRB_ILoveCreature_F_01" AutoReadOnly
 Int Property MaxExtraLimit = 5 AutoReadOnly
 Int Property MinExtra = 2 AutoReadOnly
@@ -271,12 +272,20 @@ Function StopPeaceAnim()
 	Debug.SendAnimationEvent(PlayerRef, "IdleForceDefaultState")
 EndFunction
 
+; plays the animation for "Animation time" seconds, then back to normal (mate lines, MCM test)
+Bool Function PlayGesture()
+	If !StartPeaceAnim()
+		Return False
+	EndIf
+	Utility.Wait(PeaceAnimSeconds)
+	StopPeaceAnim()
+	Utility.Wait(0.3)
+	Return True
+EndFunction
+
 ; MCM "Play the animation now" (runs after the menu closes)
 Function TestPeaceAnim()
-	If StartPeaceAnim()
-		Utility.Wait(PeaceAnimSeconds)
-		StopPeaceAnim()
-	Else
+	If !PlayGesture()
 		Debug.Notification("ILoveCreature: the animation cannot play now (mounted, swimming, sitting...)")
 	EndIf
 EndFunction

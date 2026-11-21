@@ -897,7 +897,8 @@ Function PeaceLeft()
 	AddSliderOptionST("ILC_PeaceMinutes", "Peace duration", P.PeaceMinutes, "{0} min")
 	AddSliderOptionST("ILC_PeaceRadius", "Hotkey area", P.PeaceRadius, "{0} units")
 	AddToggleOptionST("ILC_PeaceAnim", "Play animation on hotkey", P.PeaceAnim)
-	AddSliderOptionST("ILC_PeaceAnimTime", "Animation time", P.PeaceAnimSeconds, "{1} s", FlagIf(P.PeaceAnim))
+	AddToggleOptionST("ILC_MateAnim", "Play animation before mate lines", P.MateAnim)
+	AddSliderOptionST("ILC_PeaceAnimTime", "Animation time", P.PeaceAnimSeconds, "{1} s", FlagIf(P.PeaceAnim || P.MateAnim))
 	AddTextOptionST("ILC_PeaceAnimTest", "Play the animation now", "PLAY")
 	AddEmptyOption()
 	AddHeaderOption("Spells")
@@ -1065,6 +1066,20 @@ State ILC_PeaceAnim
 	EndEvent
 	Event OnHighlightST()
 		SetInfoText("When you press the peace hotkey you play the \"I come in peace.\" animation (SRB_ILoveCreature_F_01, needs FNIS / Nemesis run). The creature comes to talk when it ends. Default: on.")
+	EndEvent
+EndState
+
+State ILC_MateAnim
+	Event OnSelectST()
+		Main.Peace.MateAnim = !Main.Peace.MateAnim
+		ForcePageReset()
+	EndEvent
+	Event OnDefaultST()
+		Main.Peace.MateAnim = True
+		ForcePageReset()
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Every mate line (\"I will make you happy.\", \"Let's do something dirty.\", \"I will make you all happy.\"...) first plays the same animation for Animation time, then the scene starts. Default: on.")
 	EndEvent
 EndState
 

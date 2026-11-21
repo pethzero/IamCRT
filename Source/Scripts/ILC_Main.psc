@@ -293,6 +293,7 @@ EndFunction
 ; Core: start a consensual scene (player + creature [+ group]), tame and/or reward when it ends.
 ; asTags / asSuppress pick animations (fallback: any animation); if no scene can start, tame / reward right away.
 Bool Function StartMateEx(Actor akCreature, Bool abTameAfter = False, String asTags = "", String asSuppress = "", Int aiReward = 0, Bool abGroup = False)
+	PlayMateIntro()
 	String err = CheckMate(akCreature)
 	If err != ""
 		Debug.Notification("ILoveCreature: " + err)
@@ -410,7 +411,7 @@ Int Function FindGroupCreatures(Actor akCreature, Actor[] outExtras)
 		Int k = 0
 		While k < near.Length && found < want
 			Actor b = near[k]
-			If IsGroupCandidate(b, akCreature, outExtras) && !b.IsHostileToActor(PlayerRef)
+			If IsGroupCandidate(b, akCreature, outExtras) && (!b.IsHostileToActor(PlayerRef) || (Peace && Peace.IsPeaceful(b)))
 				outExtras[found] = b
 				found += 1
 			EndIf
@@ -425,7 +426,10 @@ Bool Function IsGroupCandidate(Actor a, Actor akCreature, Actor[] already)
 	If !a || a == akCreature || a == PlayerRef || already.Find(a) >= 0
 		Return False
 	EndIf
-	If a.IsDead() || a.IsDisabled() || !a.Is3DLoaded() || a.IsInCombat() || a.HasKeyword(ActorTypeNPC)
+	If a.IsDead() || a.IsDisabled() || !a.Is3DLoaded() || a.HasKeyword(ActorTypeNPC)
+		Return False
+	EndIf
+	If a.IsInCombat() && !(Peace && Peace.IsPeaceful(a))
 		Return False
 	EndIf
 	If a.GetDistance(PlayerRef) > GroupRadius || SexLab.IsActorActive(a)
@@ -706,6 +710,19 @@ String Function CheckMate(Actor akCreature)
 	Return ""
 EndFunction
 
+; V.4.7 the prepared animation before a mate line starts its scene (MCM Settings -> Peace)
+Function PlayMateIntro()
+	If !Peace || !Peace.MateAnim
+		Return
+	EndIf
+	Int w = 0
+	While w < 25 && UI.IsMenuOpen("Dialogue Menu")      ; the line is said first, the animation plays after the menu
+		Utility.Wait(0.2)
+		w += 1
+	EndWhile
+	Peace.PlayGesture()
+EndFunction
+
 Function TameNow(Actor akCreature, Bool abTame)
 	If abTame && akCreature && !akCreature.IsDead() && Followers && !Followers.IsPet(akCreature)
 		Followers.TameWithMessage(akCreature)
@@ -801,6 +818,7 @@ Bool[] chainUsed                   ; True = had its scene (or was skipped)
 Bool chainNext = False
 
 Bool Function MateAll(Actor akCreature)
+	PlayMateIntro()
 	String err = CheckMate(akCreature)
 	If err != ""
 		Debug.Notification("ILoveCreature: " + err)
@@ -835,7 +853,7 @@ EndFunction
 
 ; V.4.5 "all of you" picks the creatures you just calmed (G key) first, then other friendly creatures
 ; around. Any race: every scene is built from creatures that fit together (see StartNextChainScene).
-; Your companions are not taken (they are already yours).
+; V.4.7: your companions fill the free places last (after one round every creature is a companion).
 Int Function FindAllCreatures(Actor akCreature, Actor[] outExtras)
 	Int want = outExtras.Length
 	Int found = 0
@@ -871,21 +889,35 @@ Int Function FindAllCreatures(Actor akCreature, Actor[] outExtras)
 			k += 1
 		EndWhile
 	EndIf
-	Dbg("All of you: want " + want + ", found " + found + " (" + peaceful + " peaceful, " + rejected + " of them not free, " + near.Length + " actors scanned)")
+	Int pets = 0
+	If found < want && Followers
+		Int n2 = Followers.GetSlotLimit()
+		Int j = 0
+		While j < n2 && found < want
+			Actor c = Followers.GetActorInSlot(j)
+			If c && IsAllCandidate(c, akCreature, outExtras, True)
+				outExtras[found] = c
+				found += 1
+				pets += 1
+			EndIf
+			j += 1
+		EndWhile
+	EndIf
+	Dbg("All of you: want " + want + ", found " + found + " (" + peaceful + " peaceful, " + rejected + " of them not free, " + near.Length + " actors scanned, " + pets + " companions)")
 	Return found
 EndFunction
 
-Bool Function IsAllCandidate(Actor a, Actor akCreature, Actor[] already)
+Bool Function IsAllCandidate(Actor a, Actor akCreature, Actor[] already, Bool abPets = False)
 	If !a || a == akCreature || a == PlayerRef || already.Find(a) >= 0
 		Return False
 	EndIf
 	If a.IsDead() || a.IsDisabled() || !a.Is3DLoaded() || a.HasKeyword(ActorTypeNPC)
 		Return False
 	EndIf
-	If Followers && Followers.IsPet(a)
+	If Followers && Followers.IsPet(a) != abPets
 		Return False
 	EndIf
-	Bool calm = Peace && Peace.IsPeaceful(a)
+	Bool calm = abPets || (Peace && Peace.IsPeaceful(a))
 	If !calm && (a.IsInCombat() || a.IsHostileToActor(PlayerRef))
 		Return False
 	EndIf
@@ -958,8 +990,8 @@ Bool Function StartNextChainScene()
 				j += 1
 			EndWhile
 
-			Actor[] pos
-			sslBaseAnimation[] anims
+			Actor[] pos = None
+			sslBaseAnimation[] anims = None
 			While !pos
 				pos = MakePositions(lead, ex, k)
 				anims = SexLab.GetCreatureAnimationsByActors(pos.Length, pos)
