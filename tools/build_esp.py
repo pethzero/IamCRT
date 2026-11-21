@@ -369,7 +369,7 @@ MENU_ALIAS = 200
 # ---- V.3: spell "Creature Bond" (new FormIDs after 0863)
 mgef_tame = p.reserve("ILC_TameEffect", "MGEF")
 spel_tame = p.reserve("ILC_TameSpell", "SPEL")
-TAME_NAME = "Creature Bond"
+TAME_NAME = "ILC Creature Bond"            # V.5: "ILC" prefix on every spell
 mg = []
 for t, d in af_subs(AF_MGEF_TAME):
     if t == "CTDA":
@@ -663,15 +663,15 @@ def spell(rec, mgef, name, duration=0, delivery=None):
     p.fill(rec, out)
 
 
-spell_effect(mgef_peace, "ILC_PeaceEffect", "Creature Peace",
+spell_effect(mgef_peace, "ILC_PeaceEffect", "ILC Creature Peace",
              "The creature stops fighting you for a few minutes.", peace_data)
-spell(spel_peace, mgef_peace, "Creature Peace", PEACE_SECONDS)
-spell_effect(mgef_peace_apply, "ILC_PeaceEffect", "Creature Peace",
+spell(spel_peace, mgef_peace, "ILC Creature Peace", PEACE_SECONDS)
+spell_effect(mgef_peace_apply, "ILC_PeaceEffect", "ILC Creature Peace",
              "The creature stops fighting you for a few minutes.", apply_data)
-spell(spel_peace_apply, mgef_peace_apply, "Creature Peace", PEACE_SECONDS, delivery=3)
-spell_effect(mgef_call, "ILC_CallEffect", "Creature Call",
+spell(spel_peace_apply, mgef_peace_apply, "ILC Creature Peace", PEACE_SECONDS, delivery=3)
+spell_effect(mgef_call, "ILC_CallEffect", "ILC Creature Call",
              "The creature stops fighting you and comes to talk.")
-spell(spel_call, mgef_call, "Creature Call")
+spell(spel_call, mgef_call, "ILC Creature Call")
 
 # ---- dialogue: ILC_DialogueCommands 3 = Creature Call, 4 = G key.
 # Greeting WITHOUT links -> the normal top-level menu of every mod; our two lines are TopLevel
@@ -703,12 +703,44 @@ p.fill(t_all, dial(q_dlg.formid, branch=br_all.formid, prompt="I will make you a
 p.add_info(t_all, info(
     "*The others gather around you.*",
     flags=("Goodbye",) + silent,
-    conditions=[is_creature_alias, CTDA("GetGlobalValue", "==", 4, p1=g_cmds.formid)],
+    conditions=[is_creature_alias, peace_mode],                 # V.5: Creature Call (3) and G (4)
     vmad=VMAD_info([Script("ILC_TopicCreaturePCAll", [Prop.obj("Main", q_dlg.formid),
                                                       Prop.obj("CreatureRef", q_dlg.formid, ALIAS_CREATURE)])],
                    "ILC_TopicCreaturePCAll", begin="Fragment_0"),
-    notes="V.4 G only: this creature + Max extra (Stable / Random), scenes one after another, all become companions",
+    notes="V.5 Call + G: one group scene (Group size creatures), all become companions",
 ))
+
+# ---- V.5 spell tomes: model / icon / keywords of Skyrim.esm "Spell Tome: Calm" (SpellTomeCalm 000A2711)
+TOME_OBND = bytes.fromhex("f7fff5ffffff09000b000200")
+TOME_MODL = "Clutter\\Books\\SpellTomeIllusionLowPoly.nif"
+TOME_MODT = bytes.fromhex(
+    "0200000008000000000000000cca48c664647300b5139f092eaf2d4064647300b5139f0990738e0864647300"
+    "262c333b8aa932ab64647300b5139f09cd6472c964647300b5139f09f4c8a2a364647300b5139f09bc3af37a"
+    "64647300b5139f09314f551964647300b5139f09")
+TOME_KWDA = bytes.fromhex("a2370900a5370900")     # VendorItemSpellTome, VendorItemBook (Skyrim.esm)
+TOME_INAM = bytes.fromhex("b4fb0200")             # inventory art of the vanilla spell tomes
+
+
+def tome(edid, spel, name, text):
+    b = p.reserve(edid, "BOOK")
+    p.fill(b, [
+        sub("OBND", TOME_OBND), FULL("Spell Tome: " + name),
+        sub("MODL", zstr(TOME_MODL)), sub("MODT", TOME_MODT),
+        sub("DESC", zstr(text)),
+        sub("KSIZ", u32(2)), sub("KWDA", TOME_KWDA),
+        # flags 0x04 = teaches a spell, type 0, spell, value, weight
+        sub("DATA", bytes([0x04, 0, 0, 0]) + u32(spel.formid) + u32(50) + struct.pack("<f", 1.0)),
+        sub("INAM", TOME_INAM), sub("CNAM", u32(0)),
+    ])
+    return b
+
+
+book_tame = tome("ILC_BookTame", spel_tame, TAME_NAME,
+                 "Reading this tome teaches ILC Creature Bond: the creature stops fighting and becomes your companion.")
+book_peace = tome("ILC_BookPeace", spel_peace, "ILC Creature Peace",
+                  "Reading this tome teaches ILC Creature Peace: the creature stops fighting you for a few minutes.")
+book_call = tome("ILC_BookCall", spel_call, "ILC Creature Call",
+                 "Reading this tome teaches ILC Creature Call: the creature stops fighting you and comes to talk.")
 
 # ---- dialogue quest: ILC_Main gets "Peace", second script ILC_Peace
 q_dlg.subs = [(t, VMAD_quest(
@@ -729,6 +761,9 @@ q_dlg.subs = [(t, VMAD_quest(
         Prop.obj("PeaceSpell", spel_peace.formid),
         Prop.obj("CallSpell", spel_call.formid),
         Prop.obj("PeaceApplySpell", spel_peace_apply.formid),
+        Prop.obj("TameBook", book_tame.formid),
+        Prop.obj("PeaceBook", book_peace.formid),
+        Prop.obj("CallBook", book_call.formid),
     ])],
     alias_scripts={
         ALIAS_PLAYER: [Script("ILC_PlayerAlias")],

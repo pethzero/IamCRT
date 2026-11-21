@@ -329,7 +329,51 @@ bool function ReleasePet(Actor a, string reason = "Released")
 	return true
 endfunction
 
+; ---------------------------------------------------------------- V.5 MCM "Follower Status" -> Edit
+; Health / Stamina / Magicka / Confidence / Assistance: the first edit remembers the original value,
+; Reset or Release gives it back. Aggression is restored by _Cleanup (dAggression) anyway.
+function EditStat(Actor a, string av, float value)
+	if !a
+		return
+	endif
+	string k = "ILC.Orig." + av
+	if av != "Aggression" && !StorageUtil.HasFloatValue(a, k)
+		StorageUtil.SetFloatValue(a, k, a.GetBaseActorValue(av))
+	endif
+	a.SetActorValue(av, value)
+	if av == "Aggression" || av == "Confidence" || av == "Assistance"
+		a.EvaluatePackage()
+	endif
+	dtrace("edit " + a + " " + av + " = " + value)
+endfunction
+
+bool function HasEditedStats(Actor a)
+	return a && (StorageUtil.HasFloatValue(a, "ILC.Orig.Health") || StorageUtil.HasFloatValue(a, "ILC.Orig.Stamina") \
+		|| StorageUtil.HasFloatValue(a, "ILC.Orig.Magicka") || StorageUtil.HasFloatValue(a, "ILC.Orig.Confidence") \
+		|| StorageUtil.HasFloatValue(a, "ILC.Orig.Assistance"))
+endfunction
+
+function RestoreStats(Actor a)
+	if !a
+		return
+	endif
+	RestoreStat(a, "Health")
+	RestoreStat(a, "Stamina")
+	RestoreStat(a, "Magicka")
+	RestoreStat(a, "Confidence")
+	RestoreStat(a, "Assistance")
+endfunction
+
+function RestoreStat(Actor a, string av)
+	string k = "ILC.Orig." + av
+	if StorageUtil.HasFloatValue(a, k)
+		a.SetActorValue(av, StorageUtil.GetFloatValue(a, k))
+		StorageUtil.UnsetFloatValue(a, k)
+	endif
+endfunction
+
 function _Cleanup(Actor a, int slot)
+	RestoreStats(a)                 ; V.5 values edited in the MCM go back to the original
 	NFFRemove(a)                    ; free a NFF slot if NFF grabbed it (before we restore aggression etc.)
 	NFFIgnore(a, false)
 	a.SetPlayerTeammate(false, false)

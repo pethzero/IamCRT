@@ -16,6 +16,9 @@ ILC_Followers Property Followers Auto
 Spell Property PeaceSpell Auto             ; ILC_PeaceSpell "Creature Peace" (aimed, player spell)
 Spell Property CallSpell Auto              ; ILC_CallSpell "Creature Call" (aimed, player spell)
 Spell Property PeaceApplySpell Auto        ; ILC_PeaceApplySpell (target actor, no projectile: G key + Call)
+Book Property TameBook Auto                ; V.5 "Spell Tome: ILC Creature Bond"
+Book Property PeaceBook Auto               ; V.5 "Spell Tome: ILC Creature Peace"
+Book Property CallBook Auto                ; V.5 "Spell Tome: ILC Creature Call"
 
 ; value of ILC_DialogueCommands for the two new dialogue modes (0 Talk, 1 K, 2 Mate)
 Int Property MODE_CALL = 3 AutoReadOnly
@@ -307,6 +310,26 @@ Actor Function NearestCreature(Actor[] list)
 		i += 1
 	EndWhile
 	Return best
+EndFunction
+
+; ---------------------------------------------------------------
+; V.5 MCM Settings -> Spells -> "Add spell books" (debug / new characters)
+; ---------------------------------------------------------------
+Int Function AddSpellBooks()
+	Int n = 0
+	If TameBook
+		PlayerRef.AddItem(TameBook, 1, True)
+		n += 1
+	EndIf
+	If PeaceBook
+		PlayerRef.AddItem(PeaceBook, 1, True)
+		n += 1
+	EndIf
+	If CallBook
+		PlayerRef.AddItem(CallBook, 1, True)
+		n += 1
+	EndIf
+	Return n
 EndFunction
 
 ; ---------------------------------------------------------------

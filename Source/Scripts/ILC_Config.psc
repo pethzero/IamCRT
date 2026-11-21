@@ -176,7 +176,7 @@ Function PageStatus()
 	If !a
 		AddMenuOption("Companion", "None", OPTION_FLAG_DISABLED)
 		AddTextOption("No creature companions yet.", "", OPTION_FLAG_DISABLED)
-		AddTextOption("Cast 'Creature Bond' on a creature, or", "", OPTION_FLAG_DISABLED)
+		AddTextOption("Cast 'ILC Creature Bond' on a creature, or", "", OPTION_FLAG_DISABLED)
 		AddTextOption("press the dialogue hotkey: 'I need a follower.'", "", OPTION_FLAG_DISABLED)
 		Return
 	EndIf
@@ -219,8 +219,20 @@ Function PageStatus()
 	oidInventory = AddTextOption("Inventory", "Open", FlagIf(alive))
 	oidRelease = AddTextOption("Release companion", "Release")
 
+	; V.5 edit stats / behaviour of this companion
+	Int ef = FlagIf(alive)
+	AddEmptyOption()
+	AddHeaderOption("Edit " + a.GetDisplayName())
+	AddSliderOptionST("ILC_EditHealth", "Health (base)", a.GetBaseActorValue("Health"), "{0}", ef)
+	AddSliderOptionST("ILC_EditStamina", "Stamina (base)", a.GetBaseActorValue("Stamina"), "{0}", ef)
+	AddSliderOptionST("ILC_EditMagicka", "Magicka (base)", a.GetBaseActorValue("Magicka"), "{0}", ef)
+	AddTextOptionST("ILC_EditAggression", "Aggression", AggressionName(a.GetActorValue("Aggression") as Int), ef)
+	AddTextOptionST("ILC_EditConfidence", "Confidence", ConfidenceName(a.GetActorValue("Confidence") as Int), ef)
+	AddTextOptionST("ILC_EditAssistance", "Assistance", AssistanceName(a.GetActorValue("Assistance") as Int), ef)
+	AddTextOptionST("ILC_EditReset", "Original values", "RESET", FlagIf(alive && Followers.HasEditedStats(a)))
+
 	SetCursorFillMode(LEFT_TO_RIGHT)
-	SetCursorPosition(24)
+	SetCursorPosition(38)
 	AddHeaderOption("All Companions")
 	AddEmptyOption()
 	Int n = Followers.GetSlotLimit()
@@ -235,6 +247,170 @@ Function PageStatus()
 		i += 1
 	EndWhile
 EndFunction
+
+; ---- V.5 Follower Status -> Edit
+String Function AggressionName(Int v)
+	If v <= 0
+		Return "Unaggressive"
+	EndIf
+	Return "Aggressive"
+EndFunction
+
+String Function ConfidenceName(Int v)
+	If v <= 0
+		Return "Cowardly"
+	ElseIf v == 1
+		Return "Cautious"
+	ElseIf v == 2
+		Return "Average"
+	ElseIf v == 3
+		Return "Brave"
+	EndIf
+	Return "Foolhardy"
+EndFunction
+
+String Function AssistanceName(Int v)
+	If v <= 0
+		Return "Helps nobody"
+	ElseIf v == 1
+		Return "Helps allies"
+	EndIf
+	Return "Helps friends and allies"
+EndFunction
+
+Actor Function EditTarget()
+	Actor a = Followers.GetActorInSlot(selSlot)
+	If a && !a.IsDead()
+		Return a
+	EndIf
+	Return None
+EndFunction
+
+Function EditSliderOpen(String av, Float maxV)
+	Actor a = EditTarget()
+	If a
+		Float v = a.GetBaseActorValue(av)
+		Float def = v
+		If StorageUtil.HasFloatValue(a, "ILC.Orig." + av)
+			def = StorageUtil.GetFloatValue(a, "ILC.Orig." + av)
+		EndIf
+		If v > maxV
+			maxV = v
+		EndIf
+		OpenSlider(v, def, 0.0, maxV, 5.0)
+	EndIf
+EndFunction
+
+Function EditSliderAccept(String av, Float v)
+	Actor a = EditTarget()
+	If a
+		Followers.EditStat(a, av, v)
+		ForcePageReset()
+	EndIf
+EndFunction
+
+State ILC_EditHealth
+	Event OnSliderOpenST()
+		EditSliderOpen("Health", 2000.0)
+	EndEvent
+	Event OnSliderAcceptST(Float v)
+		If v < 1.0
+			v = 1.0
+		EndIf
+		EditSliderAccept("Health", v)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Base health of this companion. The original value comes back with Reset or when you release it.")
+	EndEvent
+EndState
+
+State ILC_EditStamina
+	Event OnSliderOpenST()
+		EditSliderOpen("Stamina", 1000.0)
+	EndEvent
+	Event OnSliderAcceptST(Float v)
+		EditSliderAccept("Stamina", v)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Base stamina of this companion (power attacks, sprint). Original value: Reset / release.")
+	EndEvent
+EndState
+
+State ILC_EditMagicka
+	Event OnSliderOpenST()
+		EditSliderOpen("Magicka", 1000.0)
+	EndEvent
+	Event OnSliderAcceptST(Float v)
+		EditSliderAccept("Magicka", v)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Base magicka of this companion (creatures with spells or breath). Original value: Reset / release.")
+	EndEvent
+EndState
+
+State ILC_EditAggression
+	Event OnSelectST()
+		Actor a = EditTarget()
+		If a
+			Int v = 1
+			If a.GetActorValue("Aggression") >= 1.0
+				v = 0
+			EndIf
+			Followers.EditStat(a, "Aggression", v as Float)
+			SetTextOptionValueST(AggressionName(v))
+		EndIf
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Unaggressive: only fights when you or it are attacked (companion default). Aggressive: also attacks enemies it sees. Release restores the creature's own value.")
+	EndEvent
+EndState
+
+State ILC_EditConfidence
+	Event OnSelectST()
+		Actor a = EditTarget()
+		If a
+			Int v = (a.GetActorValue("Confidence") as Int) + 1
+			If v > 4
+				v = 0
+			EndIf
+			Followers.EditStat(a, "Confidence", v as Float)
+			ForcePageReset()
+		EndIf
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Click to change: Cowardly (flees), Cautious, Average, Brave, Foolhardy (never flees).")
+	EndEvent
+EndState
+
+State ILC_EditAssistance
+	Event OnSelectST()
+		Actor a = EditTarget()
+		If a
+			Int v = (a.GetActorValue("Assistance") as Int) + 1
+			If v > 2
+				v = 0
+			EndIf
+			Followers.EditStat(a, "Assistance", v as Float)
+			ForcePageReset()
+		EndIf
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Click to change: Helps nobody, Helps allies, Helps friends and allies (joins your fights).")
+	EndEvent
+EndState
+
+State ILC_EditReset
+	Event OnSelectST()
+		Actor a = EditTarget()
+		If a
+			Followers.RestoreStats(a)
+			ForcePageReset()
+		EndIf
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Gives back the original Health, Stamina, Magicka, Confidence and Assistance of this companion.")
+	EndEvent
+EndState
 
 ; ---- Slot History: every companion with Summon / Go to + event log
 Function PageSlots()
@@ -905,6 +1081,7 @@ Function PeaceLeft()
 	AddTextOptionST("ILC_InfoPeaceSpell", "Creature Peace", "Calm")
 	AddTextOptionST("ILC_InfoCallSpell", "Creature Call", "Calm + talk")
 	AddTextOptionST("ILC_PeaceSpellsAdd", "Learn the spells again", "ADD")
+	AddTextOptionST("ILC_SpellBooksAdd", "Add spell books (debug)", "ADD")
 	AddEmptyOption()
 	AddHeaderOption("Uninstall")
 	If Main.Uninstalled
@@ -1014,6 +1191,16 @@ EndState
 State ILC_InfoCallSpell
 	Event OnHighlightST()
 		SetInfoText("Creature Call (aimed): peace + the creature comes to talk. You see the normal dialogue of every mod, \"I will make you happy.\" is added at the end (scene, then it becomes your companion).")
+	EndEvent
+EndState
+
+State ILC_SpellBooksAdd
+	Event OnSelectST()
+		Int n = Main.Peace.AddSpellBooks()
+		ShowMessage(n + " spell book(s) added to your inventory:\nILC Creature Bond, ILC Creature Peace, ILC Creature Call.", False)
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Debug: puts the 3 spell tomes (ILC Creature Bond / Peace / Call) in your inventory. Read one to learn its spell, or give them to another character.")
 	EndEvent
 EndState
 
