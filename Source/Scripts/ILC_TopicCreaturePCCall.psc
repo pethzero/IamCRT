@@ -2,7 +2,7 @@
 ;NEXT FRAGMENT INDEX 1
 Scriptname ILC_TopicCreaturePCCall Extends TopicInfo Hidden
 {V.4 "I will make you happy." at the end of the Creature Call / G dialogue: consensual scene with this creature.
-It does not become a companion. Logic: ILC_Main.MateCall}
+V.4.5: after the scene it becomes a companion. Logic: ILC_Main.MateCall}
 
 ;BEGIN FRAGMENT Fragment_0
 Function Fragment_0(ObjectReference akSpeakerRef)

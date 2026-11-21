@@ -765,7 +765,7 @@ Function FinishPending()
 	EndIf
 	Dbg("Giving reward " + reward + " (companion " + BuffFollower + ", player " + BuffPlayer + ")")
 	GiveReward(r, reward, grp)
-	If chainQueue && chainPos < chainQueue.Length     ; V.4 "all of you": next creature(s)
+	If ChainLeft() > 0                ; V.4 "all of you": next creature(s)
 		chainNext = True
 		RegisterForSingleUpdate(3.0)
 	ElseIf chainQueue
@@ -786,9 +786,10 @@ EndFunction
 ; ---------------------------------------------------------------
 ; V.4 Peace dialogue lines (Creature Call spell / G key)
 ; ---------------------------------------------------------------
-; "I will make you happy." at the end of the Call / G dialogue: scene with this creature only, no taming
+; "I will make you happy." at the end of the Call / G dialogue: scene with this creature,
+; then it becomes a companion (V.4.5, same as "I will make you happy." under "I need a follower.")
 Bool Function MateCall(Actor akCreature)
-	Return StartMateEx(akCreature, False, "", "", REWARD_NONE)
+	Return StartMateEx(akCreature, True, "", "", REWARD_NONE)
 EndFunction
 
 ; "I will make you all happy." (G only): this creature + ExtraCount() creatures around.
@@ -796,7 +797,7 @@ EndFunction
 ; SexLab allows max 5 actors (player + 4 creatures) per scene, so the creatures are queued and the
 ; scenes run one after another until everyone had a turn.
 Actor[] chainQueue
-Int chainPos = 0
+Bool[] chainUsed                   ; True = had its scene (or was skipped)
 Bool chainNext = False
 
 Bool Function MateAll(Actor akCreature)
@@ -810,22 +811,21 @@ Bool Function MateAll(Actor akCreature)
 		want = Peace.ExtraCount()
 	EndIf
 	Actor[] extras = PapyrusUtil.ActorArray(want)
-	Int found = FindGroupCreatures(akCreature, extras)
+	Int found = FindAllCreatures(akCreature, extras)
 	chainQueue = PapyrusUtil.ActorArray(found + 1)
+	chainUsed = PapyrusUtil.BoolArray(found + 1)
 	chainQueue[0] = akCreature
 	Int i = 0
 	While i < found
 		chainQueue[i + 1] = extras[i]
 		i += 1
 	EndWhile
-	chainPos = 0
 	chainNext = False
 	If found < want
-		Debug.Notification("All of you: " + (found + 1) + " creature(s) (wanted 1 + " + want + ", only " + found + " compatible nearby)")
+		Debug.Notification("All of you: " + (found + 1) + " creature(s) (wanted 1 + " + want + ", only " + found + " free nearby)")
 	Else
 		Debug.Notification("All of you: " + (found + 1) + " creature(s)")
 	EndIf
-	Dbg("All of you: want " + want + " extra, found " + found)
 	If !StartNextChainScene()
 		Debug.Notification("ILoveCreature: No animation found for these creatures")
 		Return False
@@ -833,12 +833,102 @@ Bool Function MateAll(Actor akCreature)
 	Return True
 EndFunction
 
-Bool Function ChainOK(Actor a)
-	Return a && !a.IsDead() && !a.IsDisabled() && a.Is3DLoaded() && !a.IsInCombat() \
-		&& a.GetDistance(PlayerRef) < GroupRadius * 1.5 && !SexLab.IsActorActive(a)
+; V.4.5 "all of you" picks the creatures you just calmed (G key) first, then other friendly creatures
+; around. Any race: every scene is built from creatures that fit together (see StartNextChainScene).
+; Your companions are not taken (they are already yours).
+Int Function FindAllCreatures(Actor akCreature, Actor[] outExtras)
+	Int want = outExtras.Length
+	Int found = 0
+	Int peaceful = 0
+	Int rejected = 0
+	If Peace
+		Int n = StorageUtil.FormListCount(None, Peace.LIST_KEY)
+		Int i = 0
+		While i < n && found < want
+			Actor a = StorageUtil.FormListGet(None, Peace.LIST_KEY, i) as Actor
+			If a && a != akCreature
+				peaceful += 1
+				If IsAllCandidate(a, akCreature, outExtras)
+					outExtras[found] = a
+					found += 1
+				Else
+					rejected += 1
+				EndIf
+			EndIf
+			i += 1
+		EndWhile
+	EndIf
+	Actor[] near = PapyrusUtil.ActorArray(0)
+	If found < want
+		near = MiscUtil.ScanCellNPCs(PlayerRef, GroupRadius)
+		Int k = 0
+		While k < near.Length && found < want
+			Actor b = near[k]
+			If IsAllCandidate(b, akCreature, outExtras)
+				outExtras[found] = b
+				found += 1
+			EndIf
+			k += 1
+		EndWhile
+	EndIf
+	Dbg("All of you: want " + want + ", found " + found + " (" + peaceful + " peaceful, " + rejected + " of them not free, " + near.Length + " actors scanned)")
+	Return found
 EndFunction
 
-; next scene of the queue: 1 lead creature + up to 3 more (fewer if no animation fits)
+Bool Function IsAllCandidate(Actor a, Actor akCreature, Actor[] already)
+	If !a || a == akCreature || a == PlayerRef || already.Find(a) >= 0
+		Return False
+	EndIf
+	If a.IsDead() || a.IsDisabled() || !a.Is3DLoaded() || a.HasKeyword(ActorTypeNPC)
+		Return False
+	EndIf
+	If Followers && Followers.IsPet(a)
+		Return False
+	EndIf
+	Bool calm = Peace && Peace.IsPeaceful(a)
+	If !calm && (a.IsInCombat() || a.IsHostileToActor(PlayerRef))
+		Return False
+	EndIf
+	If a.GetDistance(PlayerRef) > GroupRadius || SexLab.IsActorActive(a) || SexLab.IsForbidden(a)
+		Return False
+	EndIf
+	Return SexLab.AllowedCreature(a.GetRace())
+EndFunction
+
+; a calmed creature may still have its combat flag for a while: that does not stop it
+Bool Function ChainOK(Actor a)
+	If !a || a.IsDead() || a.IsDisabled() || !a.Is3DLoaded() || SexLab.IsActorActive(a) || SexLab.IsForbidden(a)
+		Return False
+	EndIf
+	If a.IsInCombat() && !(Peace && Peace.IsPeaceful(a))
+		Return False
+	EndIf
+	Return a.GetDistance(PlayerRef) < GroupRadius * 1.5
+EndFunction
+
+Bool Function ChainFits(Actor lead, Actor b)
+	Race r1 = lead.GetRace()
+	Race r2 = b.GetRace()
+	Return r1 == r2 || SexLab.AllowedCreatureCombination(r1, r2)
+EndFunction
+
+Int Function ChainLeft()
+	If !chainQueue
+		Return 0
+	EndIf
+	Int n = 0
+	Int i = 0
+	While i < chainQueue.Length
+		If !chainUsed[i]
+			n += 1
+		EndIf
+		i += 1
+	EndWhile
+	Return n
+EndFunction
+
+; next scene: the first creature still waiting + up to 3 waiting creatures that fit with it
+; (same race or a combination SexLab allows; fewer if no animation fits). The rest wait for a later scene.
 Bool Function StartNextChainScene()
 	If !chainQueue || !SexLab
 		ClearChain()
@@ -849,21 +939,23 @@ Bool Function StartNextChainScene()
 		ClearChain()
 		Return False
 	EndIf
-	While chainPos < chainQueue.Length
-		Actor lead = chainQueue[chainPos]
-		chainPos += 1
-		If ChainOK(lead) && !SexLab.IsForbidden(lead)
+	Int li = chainUsed.Find(False)
+	While li >= 0
+		Actor lead = chainQueue[li]
+		chainUsed[li] = True
+		If ChainOK(lead)
 			Actor[] ex = new Actor[3]
 			Int[] idx = new Int[3]
 			Int k = 0
-			While k < 3 && chainPos < chainQueue.Length
-				Actor b = chainQueue[chainPos]
-				If ChainOK(b) && !SexLab.IsForbidden(b)
+			Int j = li + 1
+			While k < 3 && j < chainQueue.Length
+				Actor b = chainQueue[j]
+				If !chainUsed[j] && ChainOK(b) && ChainFits(lead, b)
 					ex[k] = b
-					idx[k] = chainPos
+					idx[k] = j
 					k += 1
 				EndIf
-				chainPos += 1
+				j += 1
 			EndWhile
 
 			Actor[] pos
@@ -872,38 +964,49 @@ Bool Function StartNextChainScene()
 				pos = MakePositions(lead, ex, k)
 				anims = SexLab.GetCreatureAnimationsByActors(pos.Length, pos)
 				If anims.Length == 0 && k > 0
-					k -= 1
-					chainPos = idx[k]          ; the dropped creature waits for a later scene
+					k -= 1                    ; the dropped creature waits for a later scene
 					ex[k] = None
 					pos = None
 				EndIf
 			EndWhile
 
-			pendingTame = lead                ; "you all happy": the lead and its group join you
-			pendingReward = REWARD_NONE
-			pendingRewardActor = lead
-			pendingGroup = ex
-			Int tid = SexLab.StartSex(pos, anims, None, None, True, MateHook)
-			If tid >= 0
-				Int left = chainQueue.Length - chainPos
-				Dbg("All of you: scene " + lead.GetDisplayName() + " +" + k + ", " + left + " waiting")
-				If left > 0
-					Debug.Notification(lead.GetDisplayName() + " +" + k + " (" + left + " more waiting)")
+			If anims.Length > 0
+				Int m = 0
+				While m < k
+					chainUsed[idx[m]] = True
+					m += 1
+				EndWhile
+				pendingTame = lead            ; "you all happy": the lead and its group join you
+				pendingReward = REWARD_NONE
+				pendingRewardActor = lead
+				pendingGroup = ex
+				Int tid = SexLab.StartSex(pos, anims, None, None, True, MateHook)
+				If tid >= 0
+					Int left = ChainLeft()
+					Dbg("All of you: scene " + lead.GetDisplayName() + " +" + k + ", " + left + " waiting")
+					If left > 0
+						Debug.Notification(lead.GetDisplayName() + " +" + k + " (" + left + " more waiting)")
+					EndIf
+					waitingForScene = True
+					RegisterForSingleUpdate(10.0)
+					Return True
 				EndIf
-				waitingForScene = True
-				RegisterForSingleUpdate(10.0)
-				Return True
+				pendingTame = None
+				pendingRewardActor = None
+				pendingGroup = None
+				m = 0
+				While m < k
+					chainUsed[idx[m]] = False  ; the others get their own turn
+					m += 1
+				EndWhile
+				Dbg("All of you: scene failed for " + lead.GetDisplayName())
+			Else
+				Dbg("All of you: no animation for " + lead.GetDisplayName() + " (" + lead.GetRace().GetName() + ")")
 			EndIf
-			pendingTame = None
-			pendingRewardActor = None
-			pendingGroup = None
-			If k > 0
-				chainPos = idx[0]             ; the others get their own turn
-			EndIf
-			Dbg("All of you: scene failed for " + lead.GetDisplayName())
 		Else
-			Dbg("All of you: skipped " + lead)
+			Dbg("All of you: skipped " + lead.GetDisplayName() + " (not free)")
 		EndIf
+		li = chainUsed.Find(False)
 	EndWhile
 	ClearChain()
 	Return False
@@ -911,7 +1014,7 @@ EndFunction
 
 Function ClearChain()
 	chainQueue = None
-	chainPos = 0
+	chainUsed = None
 	chainNext = False
 EndFunction
 
@@ -919,7 +1022,7 @@ String Function ChainStatus()
 	If !chainQueue
 		Return "Idle"
 	EndIf
-	Return (chainQueue.Length - chainPos) + " waiting"
+	Return ChainLeft() + " waiting"
 EndFunction
 
 ; MCM Settings -> Peace Debug -> Reset: stop the queue, forget the running scene, end every peace effect

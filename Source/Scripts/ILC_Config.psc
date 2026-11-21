@@ -1007,7 +1007,7 @@ EndState
 
 State ILC_InfoCallSpell
 	Event OnHighlightST()
-		SetInfoText("Creature Call (aimed): peace + the creature comes to talk. You see the normal dialogue of every mod, \"I will make you happy.\" is added at the end.")
+		SetInfoText("Creature Call (aimed): peace + the creature comes to talk. You see the normal dialogue of every mod, \"I will make you happy.\" is added at the end (scene, then it becomes your companion).")
 	EndEvent
 EndState
 
