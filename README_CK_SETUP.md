@@ -8,6 +8,7 @@
 | Hotkey **G** | You say **"I come in peace."** Every creature within the area (2500 units) becomes peaceful, then the creature under the crosshair (or the nearest) talks to you. Extra line: **"I will make you all happy."** |
 | "you all happy" | This creature + **Max extra** (2-5, default 3) creatures nearby. **Stable** = always Max extra, **Random** = 2..Max extra. SexLab allows 4 creatures per scene, the rest get the next scene (chain). **Every creature becomes your companion** after its scene. |
 | MCM **Settings** page (Peace part, V.4.3: no own page) | Hotkey, duration, area, Max extra, Stable/Random, Debug messages, live counters, **Reset peace + group** (fix stuck). |
+| MCM Settings → **Uninstall** (V.4.4) | Before removing the mod: releases every companion (original aggression, factions, relationship, crime faction, activation, NFF slot, door flags), ends peace effects + group queue, removes mate buffs, removes Creature Peace / Creature Call / Command / Tame spells, unregisters hotkeys and events, clears `ILC.*` StorageUtil data and turns the mod off (stays off after loading). Then save and disable the mod. Turning **Mod Enabled** on again undoes the off state. |
 | Removed | The test lines **"Hello!"** (K mode and Talk mode). V.3 is kept in `_backup_v3/`. |
 
 Dialogue modes (global `ILC_DialogueCommands`): 0 Talk, 1 K, 2 Mate, **3 Creature Call, 4 G key**.

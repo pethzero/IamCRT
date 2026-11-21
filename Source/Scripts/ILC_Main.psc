@@ -63,6 +63,7 @@ EndFunction
 ; Settings (changed by ILC_Config / MCM)
 ; ---------------------------------------------------------------
 Bool Property ModEnabled = True Auto Hidden
+Bool Property Uninstalled = False Auto Hidden   ; V.4.4 MCM Uninstall: nothing is re-added on load until Mod Enabled is turned on again
 Int Property OpenDialogueKey = 37 Auto Hidden  ; 37 = K
 Float Property TimeoutSeconds = 15.0 Auto Hidden
 
@@ -79,6 +80,9 @@ EndEvent
 ; Called on OnInit and on every game load (ILC_PlayerAlias)
 Function Maintenance()
 	UnregisterForAllKeys()
+	If Uninstalled
+		Return
+	EndIf
 	If ModEnabled && OpenDialogueKey > 0
 		RegisterForKey(OpenDialogueKey)
 	EndIf
@@ -104,6 +108,9 @@ EndFunction
 
 Function SetModEnabled(Bool abEnabled)
 	ModEnabled = abEnabled
+	If abEnabled
+		Uninstalled = False
+	EndIf
 	If !abEnabled
 		PendingOpenFromMenu = False
 		CloseDialogue()
@@ -934,4 +941,48 @@ Function ResetPeaceAndGroup()
 	EndIf
 	Maintenance()
 	Debug.Notification("ILoveCreature: peace and group reset (" + n + " creature(s) restored)")
+EndFunction
+
+; ---------------------------------------------------------------
+; V.4.4 MCM Settings -> Uninstall: undo everything the mod changed, then stay off
+; ---------------------------------------------------------------
+Function UninstallAll()
+	Debug.Notification("ILoveCreature: uninstalling...")
+	Uninstalled = True              ; Maintenance() (also inside the resets below) does nothing from now on
+	ModEnabled = False
+	PendingOpenFromMenu = False
+
+	; 1) group queue, dialogue, peace effects (Aggression + DunPlayerAllyFaction back)
+	ResetPeaceAndGroup()
+	; 2) mate buffs on the player and every creature
+	Int buffs = ClearAllBuffs()
+	; 3) companions: factions, aggression, relationship, crime faction, activation, NFF slot, door flags,
+	;    command power + tame spell
+	Int pets = 0
+	If Followers
+		pets = Followers.GetActorCount()
+		Followers.ReleaseAll()
+		Followers.UnregisterForAllMenus()
+		Followers.UnregisterForUpdate()
+	EndIf
+	; 4) V.4 spells
+	If Peace
+		If Peace.PeaceSpell
+			PlayerRef.RemoveSpell(Peace.PeaceSpell)
+		EndIf
+		If Peace.CallSpell
+			PlayerRef.RemoveSpell(Peace.CallSpell)
+		EndIf
+	EndIf
+	; 5) events + saved data
+	UnregisterForAllKeys()
+	UnregisterForAllMenus()
+	UnregisterForAllModEvents()
+	UnregisterForUpdate()
+	If Followers && Followers.gDialogueCommands
+		Followers.gDialogueCommands.SetValue(0.0)
+	EndIf
+	Int keys = StorageUtil.ClearAllPrefix("ILC.")
+	Dbg("Uninstall: " + pets + " companion(s), " + buffs + " buff(s), " + keys + " StorageUtil key(s)")
+	Debug.MessageBox("ILoveCreature is uninstalled.\n\n" + pets + " companion(s) released, peace and buffs removed, spells and hotkeys removed.\n\nSave the game now, then disable the mod.\n(To keep using it: MCM -> Settings -> Mod Enabled.)")
 EndFunction

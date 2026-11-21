@@ -502,7 +502,9 @@ Event OnUpdate()
 		Int cmd = pendingCmd[i]
 		If cmd != 0
 			pendingCmd[i] = 0
-			If cmd == 8
+			If cmd == 9
+				Main.UninstallAll()
+			ElseIf cmd == 8
 				Main.ResetPeaceAndGroup()
 			ElseIf cmd == 7
 				Main.ClearAllBuffs()
@@ -852,6 +854,19 @@ State ILC_BuffClear
 	EndEvent
 EndState
 
+State ILC_Uninstall
+	Event OnSelectST()
+		If ShowMessage("Uninstall ILoveCreature?\n\nAll companions are released, peace / buffs / group scenes are removed, the spells, power and hotkeys are taken away and the mod turns off.", True, "Uninstall", "Cancel")
+			Queue(123, 9)
+			SetTextOptionValueST("CLOSE MENU")
+			ShowMessage("Close the menu now. A message tells you when it is done - then save the game and disable the mod.", False)
+		EndIf
+	EndEvent
+	Event OnHighlightST()
+		SetInfoText("Do this before removing the mod: releases every companion (original aggression, factions, relationship), ends peace effects, removes buffs, Creature Peace / Creature Call / Command / Tame spells and hotkeys, clears saved data and turns the mod off. Turn Mod Enabled on again to undo the off state.")
+	EndEvent
+EndState
+
 State ILC_ReleaseAll
 	Event OnSelectST()
 		If ShowMessage("Release ALL companions?")
@@ -861,7 +876,7 @@ State ILC_ReleaseAll
 		EndIf
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("Releases every companion and restores door flags. Do this before uninstalling.")
+		SetInfoText("Releases every companion and restores door flags. For a full uninstall use Settings -> Uninstall.")
 	EndEvent
 EndState
 
@@ -884,6 +899,13 @@ Function PeaceLeft()
 	AddTextOptionST("ILC_InfoPeaceSpell", "Creature Peace", "Calm")
 	AddTextOptionST("ILC_InfoCallSpell", "Creature Call", "Calm + talk")
 	AddTextOptionST("ILC_PeaceSpellsAdd", "Learn the spells again", "ADD")
+	AddEmptyOption()
+	AddHeaderOption("Uninstall")
+	If Main.Uninstalled
+		AddTextOptionST("ILC_Uninstall", "Uninstall (clean everything)", "DONE - save now", OPTION_FLAG_DISABLED)
+	Else
+		AddTextOptionST("ILC_Uninstall", "Uninstall (clean everything)", "UNINSTALL")
+	EndIf
 EndFunction
 
 ; right column of "Settings" (under Creature Dialogue)
