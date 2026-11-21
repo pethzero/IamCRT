@@ -749,6 +749,13 @@ Function FinishPending()
 		Return
 	EndIf
 	TameNow(a, True)
+	If chainQueue && grp              ; V.4 "you all happy": the other creatures of the scene join too
+		Int g = 0
+		While g < grp.Length
+			TameNow(grp[g], True)
+			g += 1
+		EndWhile
+	EndIf
 	Dbg("Giving reward " + reward + " (companion " + BuffFollower + ", player " + BuffPlayer + ")")
 	GiveReward(r, reward, grp)
 	If chainQueue && chainPos < chainQueue.Length     ; V.4 "all of you": next creature(s)
@@ -772,12 +779,13 @@ EndFunction
 ; ---------------------------------------------------------------
 ; V.4 Peace dialogue lines (Creature Call spell / G key)
 ; ---------------------------------------------------------------
-; "I will do it." at the end of the Call / G dialogue: scene with this creature only, no taming
+; "I will make you happy." at the end of the Call / G dialogue: scene with this creature only, no taming
 Bool Function MateCall(Actor akCreature)
 	Return StartMateEx(akCreature, False, "", "", REWARD_NONE)
 EndFunction
 
-; "I will make it happen for all of you." (G only): this creature + ExtraCount() creatures around.
+; "I will make you all happy." (G only): this creature + ExtraCount() creatures around.
+; Every creature becomes a companion when its scene ends (see FinishPending).
 ; SexLab allows max 5 actors (player + 4 creatures) per scene, so the creatures are queued and the
 ; scenes run one after another until everyone had a turn.
 Actor[] chainQueue
@@ -864,7 +872,7 @@ Bool Function StartNextChainScene()
 				EndIf
 			EndWhile
 
-			pendingTame = None
+			pendingTame = lead                ; "you all happy": the lead and its group join you
 			pendingReward = REWARD_NONE
 			pendingRewardActor = lead
 			pendingGroup = ex
@@ -879,6 +887,7 @@ Bool Function StartNextChainScene()
 				RegisterForSingleUpdate(10.0)
 				Return True
 			EndIf
+			pendingTame = None
 			pendingRewardActor = None
 			pendingGroup = None
 			If k > 0

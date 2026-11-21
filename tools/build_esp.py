@@ -7,8 +7,8 @@ V.1  hotkey ForceGreet creature dialogue ("Hey Hello").
 V.2  creature followers (merged from Animal Followers): tame / follow / wait / home / inventory / release
      through the creature dialogue, plus MCM pages. FormIDs of V.1 records are unchanged.
 V.3  Creature Bond spell, consent / mate choices, buffs.
-V.4  peace spells (Creature Peace, Creature Call), G key "I come in peace.", "I will make it happen for
-     all of you." group chain. The test lines "Hello!" were removed (kept in _backup_v3).
+V.4  peace spells (Creature Peace, Creature Call), G key "I come in peace.", "I will make you all happy."
+     group chain (every creature of it becomes a companion). The test lines "Hello!" were removed (kept in _backup_v3).
 
 Uses espwriter.py from the Claude skill "skyrim-esp-writer".
 The follow / sandbox / home packages are copied byte-for-byte from Animal Followers (nPetFollowers.esp,
@@ -688,7 +688,7 @@ t_call = p.reserve("ILC_CallConsent", "DIAL")
 br_all = p.reserve("ILC_CallAllBranch", "DLBR")
 t_all = p.reserve("ILC_CallAll", "DIAL")
 p.fill(br_call, dlbr(q_dlg.formid, t_call.formid, top_level=True))
-p.fill(t_call, dial(q_dlg.formid, branch=br_call.formid, prompt="I will do it.", priority=2.0))
+p.fill(t_call, dial(q_dlg.formid, branch=br_call.formid, prompt="I will make you happy.", priority=2.0))
 p.add_info(t_call, info(
     "*It comes closer.*",
     flags=("Goodbye",) + silent,
@@ -699,7 +699,7 @@ p.add_info(t_call, info(
     notes="V.4 Call / G: scene with this creature (no taming)",
 ))
 p.fill(br_all, dlbr(q_dlg.formid, t_all.formid, top_level=True))
-p.fill(t_all, dial(q_dlg.formid, branch=br_all.formid, prompt="I will make it happen for all of you.", priority=1.0))
+p.fill(t_all, dial(q_dlg.formid, branch=br_all.formid, prompt="I will make you all happy.", priority=1.0))
 p.add_info(t_all, info(
     "*The others gather around you.*",
     flags=("Goodbye",) + silent,
@@ -707,7 +707,7 @@ p.add_info(t_all, info(
     vmad=VMAD_info([Script("ILC_TopicCreaturePCAll", [Prop.obj("Main", q_dlg.formid),
                                                       Prop.obj("CreatureRef", q_dlg.formid, ALIAS_CREATURE)])],
                    "ILC_TopicCreaturePCAll", begin="Fragment_0"),
-    notes="V.4 G only: this creature + Max extra (Stable / Random), scenes one after another",
+    notes="V.4 G only: this creature + Max extra (Stable / Random), scenes one after another, all become companions",
 ))
 
 # ---- dialogue quest: ILC_Main gets "Peace", second script ILC_Peace

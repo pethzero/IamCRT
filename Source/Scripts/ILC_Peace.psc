@@ -3,9 +3,9 @@ Scriptname ILC_Peace extends Quest
 keys and updates stay in ILC_Main, which calls into this script).
  - Spell "Creature Peace" (aimed): the creature stops fighting you for PeaceMinutes (default 5).
  - Spell "Creature Call" (aimed): peace + dialogue. Our lines are added at the END of the normal
-   dialogue menu (other mods' topics stay): "I will do it."
+   dialogue menu (other mods' topics stay): "I will make you happy."
  - Hotkey G: the player says "I come in peace.", every creature around becomes peaceful, then the
-   dialogue opens with an extra line: "I will make it happen for all of you." (group chain, ILC_Main.MateAll).
+   dialogue opens with an extra line: "I will make you all happy." (group chain, ILC_Main.MateAll).
 A peaceful creature: Aggression 0 + DunPlayerAllyFaction, original values are restored when the effect ends.}
 
 Actor Property PlayerRef Auto
@@ -25,7 +25,7 @@ Int Property MODE_AREA = 4 AutoReadOnly
 Int Property PeaceKey = 34 Auto Hidden          ; 34 = G
 Float Property PeaceMinutes = 5.0 Auto Hidden   ; 1 - 30 real minutes
 Float Property PeaceRadius = 2500.0 Auto Hidden ; G area
-Int Property MaxExtra = 3 Auto Hidden           ; 1 - 5 extra creatures for "all of you"
+Int Property MaxExtra = 3 Auto Hidden           ; 1 - 5 extra creatures for "you all happy"
 Bool Property RandomExtra = False Auto Hidden   ; False = Stable (always MaxExtra), True = Random 1..MaxExtra
 Int Property MaxExtraLimit = 5 AutoReadOnly
 

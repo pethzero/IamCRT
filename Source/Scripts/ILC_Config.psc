@@ -867,7 +867,7 @@ State ILC_ReleaseAll
 EndState
 
 ; ---------------------------------------------------------------
-; V.4 Peace page: G key, peace spells, "I will make it happen for all of you.", debug
+; V.4 Peace page: G key, peace spells, "I will make you all happy.", debug
 ; ---------------------------------------------------------------
 Function PagePeace()
 	ILC_Peace P = Main.Peace
@@ -890,7 +890,7 @@ Function PagePeace()
 	AddTextOptionST("ILC_PeaceSpellsAdd", "Learn the spells again", "ADD")
 
 	SetCursorPosition(1)
-	AddHeaderOption("Group (all of you)")
+	AddHeaderOption("Group (you all happy)")
 	AddSliderOptionST("ILC_MaxExtra", "Max extra creatures", P.MaxExtra, "{0}")
 	If P.RandomExtra
 		AddTextOptionST("ILC_ExtraMode", "Extra mode", "Random 1-" + P.MaxExtra)
@@ -932,7 +932,7 @@ State ILC_PeaceKey
 		SetKeyMapOptionValueST(34)
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("You say \"I come in peace.\": every creature around you stops fighting you, then the creature you look at (or the nearest) comes to talk. Extra line: \"I will make it happen for all of you.\" Default: G.")
+		SetInfoText("You say \"I come in peace.\": every creature around you stops fighting you, then the creature you look at (or the nearest) comes to talk. Extra line: \"I will make you all happy.\" Default: G.")
 	EndEvent
 EndState
 
@@ -980,7 +980,7 @@ EndState
 
 State ILC_InfoCallSpell
 	Event OnHighlightST()
-		SetInfoText("Creature Call (aimed): peace + the creature comes to talk. You see the normal dialogue of every mod, \"I will do it.\" is added at the end.")
+		SetInfoText("Creature Call (aimed): peace + the creature comes to talk. You see the normal dialogue of every mod, \"I will make you happy.\" is added at the end.")
 	EndEvent
 EndState
 
@@ -1004,7 +1004,7 @@ State ILC_MaxExtra
 		ForcePageReset()
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("\"I will make it happen for all of you.\": how many creatures join besides the one you talk to (1 - 5). SexLab allows 4 creatures per scene - the rest get the next scene. Default: 3.")
+		SetInfoText("\"I will make you all happy.\": how many creatures join besides the one you talk to (1 - 5). All of them become your companions after their scene. SexLab allows 4 creatures per scene - the rest get the next scene. Default: 3.")
 	EndEvent
 EndState
 
