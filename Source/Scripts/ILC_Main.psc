@@ -380,7 +380,7 @@ EndFunction
 Float Property GroupRadius = 3000.0 Auto Hidden
 
 Int Function FindGroupCreatures(Actor akCreature, Actor[] outExtras)
-	Int want = outExtras.Length        ; Group: 3, V.4 "all of you": 1 - 5
+	Int want = outExtras.Length        ; Group: 3, V.4 "all of you": 2 - 5
 	Int found = 0
 	Int companions = 0
 	If Followers
@@ -915,7 +915,7 @@ String Function ChainStatus()
 	Return (chainQueue.Length - chainPos) + " waiting"
 EndFunction
 
-; MCM Peace -> Debug: stop the queue, forget the running scene, end every peace effect
+; MCM Settings -> Peace Debug -> Reset: stop the queue, forget the running scene, end every peace effect
 Function ResetPeaceAndGroup()
 	ClearChain()
 	waitingForScene = False

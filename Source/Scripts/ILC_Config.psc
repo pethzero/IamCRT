@@ -39,22 +39,21 @@ Actor pendingGoTo
 ; ---------------------------------------------------------------
 Event OnConfigInit()
 	ModName = "ILoveCreature"
-	Pages = new String[6]
+	Pages = new String[5]
 	Pages[0] = "Settings"
 	Pages[1] = "Follower Status"
 	Pages[2] = "Slot History"
 	Pages[3] = "Follower Settings"
 	Pages[4] = "Buffs"
-	Pages[5] = "Peace"
 	pendingCmd = new Int[128]
 EndEvent
 
 Int Function GetVersion()
-	Return 4
+	Return 5
 EndFunction
 
 Event OnVersionUpdate(Int newVersion)
-	If CurrentVersion < 4      ; V.3.7 adds the "Buffs" page, V.4 the "Peace" page
+	If CurrentVersion < 5      ; V.3.7 adds the "Buffs" page, V.4.3 moves "Peace" into "Settings"
 		OnConfigInit()
 	EndIf
 EndEvent
@@ -134,8 +133,6 @@ Event OnPageReset(String page)
 		PageSettings()
 	ElseIf page == "Buffs"
 		PageBuffs()
-	ElseIf page == "Peace"
-		PagePeace()
 	ElseIf !Followers || !Followers.IsInitialized()
 		SetCursorFillMode(TOP_TO_BOTTOM)
 		AddHeaderOption("Follower system is not running")
@@ -159,11 +156,13 @@ Function PageSettings()
 	SetCursorPosition(0)
 	AddHeaderOption("Global Settings")
 	AddToggleOptionST("ILC_ModEnabled", "Mod Enabled", Main.ModEnabled)
+	PeaceLeft()
 
 	SetCursorPosition(1)
 	AddHeaderOption("Creature Dialogue")
 	AddKeyMapOptionST("ILC_OpenKey", "Open Dialogue Hotkey", Main.OpenDialogueKey, OPTION_FLAG_WITH_UNMAP + flags)
 	AddTextOptionST("ILC_OpenNow", "Open Dialogue (Nearest Creature)", "OPEN", flags)
+	PeaceRight()
 EndFunction
 
 ; ---- Follower Status: selected pet + commands, overview of all pets below
@@ -867,20 +866,17 @@ State ILC_ReleaseAll
 EndState
 
 ; ---------------------------------------------------------------
-; V.4 Peace page: G key, peace spells, "I will make you all happy.", debug
+; V.4 Peace options (shown on the Settings page since V.4.3): G key, peace spells, "I will make you all happy.", debug
 ; ---------------------------------------------------------------
-Function PagePeace()
+; left column of "Settings" (under Global Settings)
+Function PeaceLeft()
 	ILC_Peace P = Main.Peace
-	SetCursorFillMode(TOP_TO_BOTTOM)
 	If !P
-		AddHeaderOption("Peace system is not running")
 		Return
 	EndIf
-	Int flags = FlagIf(Main.ModEnabled)
-
-	SetCursorPosition(0)
+	AddEmptyOption()
 	AddHeaderOption("Peace (I come in peace.)")
-	AddKeyMapOptionST("ILC_PeaceKey", "Peace hotkey", P.PeaceKey, OPTION_FLAG_WITH_UNMAP + flags)
+	AddKeyMapOptionST("ILC_PeaceKey", "Peace hotkey", P.PeaceKey, OPTION_FLAG_WITH_UNMAP + FlagIf(Main.ModEnabled))
 	AddSliderOptionST("ILC_PeaceMinutes", "Peace duration", P.PeaceMinutes, "{0} min")
 	AddSliderOptionST("ILC_PeaceRadius", "Hotkey area", P.PeaceRadius, "{0} units")
 	AddEmptyOption()
@@ -888,12 +884,21 @@ Function PagePeace()
 	AddTextOptionST("ILC_InfoPeaceSpell", "Creature Peace", "Calm")
 	AddTextOptionST("ILC_InfoCallSpell", "Creature Call", "Calm + talk")
 	AddTextOptionST("ILC_PeaceSpellsAdd", "Learn the spells again", "ADD")
+EndFunction
 
-	SetCursorPosition(1)
+; right column of "Settings" (under Creature Dialogue)
+Function PeaceRight()
+	ILC_Peace P = Main.Peace
+	If !P
+		AddEmptyOption()
+		AddHeaderOption("Peace system is not running")
+		Return
+	EndIf
+	AddEmptyOption()
 	AddHeaderOption("Group (you all happy)")
 	AddSliderOptionST("ILC_MaxExtra", "Max extra creatures", P.MaxExtra, "{0}")
 	If P.RandomExtra
-		AddTextOptionST("ILC_ExtraMode", "Extra mode", "Random 1-" + P.MaxExtra)
+		AddTextOptionST("ILC_ExtraMode", "Extra mode", "Random 2-" + P.MaxExtra)
 	Else
 		AddTextOptionST("ILC_ExtraMode", "Extra mode", "Stable " + P.MaxExtra)
 	EndIf
@@ -993,7 +998,7 @@ EndState
 
 State ILC_MaxExtra
 	Event OnSliderOpenST()
-		OpenSlider(Main.Peace.MaxExtra, 3.0, 1.0, 5.0, 1.0)
+		OpenSlider(Main.Peace.MaxExtra, 3.0, 2.0, 5.0, 1.0)
 	EndEvent
 	Event OnSliderAcceptST(Float v)
 		Main.Peace.MaxExtra = v as Int
@@ -1004,7 +1009,7 @@ State ILC_MaxExtra
 		ForcePageReset()
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("\"I will make you all happy.\": how many creatures join besides the one you talk to (1 - 5). All of them become your companions after their scene. SexLab allows 4 creatures per scene - the rest get the next scene. Default: 3.")
+		SetInfoText("\"I will make you all happy.\": how many creatures join besides the one you talk to (2 - 5). All of them become your companions after their scene. SexLab allows 4 creatures per scene - the rest get the next scene. Default: 3.")
 	EndEvent
 EndState
 
@@ -1018,7 +1023,7 @@ State ILC_ExtraMode
 		ForcePageReset()
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("Stable: always Max extra creatures (if that many are nearby). Random: a random number from 1 to Max extra every time.")
+		SetInfoText("Stable: always Max extra creatures (if that many are nearby). Random: a random number from 2 to Max extra every time.")
 	EndEvent
 EndState
 

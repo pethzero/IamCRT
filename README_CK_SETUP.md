@@ -6,8 +6,8 @@
 | Spell **Creature Peace** (aimed) | The creature stops fighting you (Aggression 0 + DunPlayerAllyFaction) for **5 min** (MCM). Original values come back when it ends. |
 | Spell **Creature Call** (aimed) | Peace + the creature comes to talk. The **normal dialogue menu** of every mod is shown; ours is added at the end: **"I will make you happy."** (scene, no taming). |
 | Hotkey **G** | You say **"I come in peace."** Every creature within the area (2500 units) becomes peaceful, then the creature under the crosshair (or the nearest) talks to you. Extra line: **"I will make you all happy."** |
-| "you all happy" | This creature + **Max extra** (1-5, default 3) creatures nearby. **Stable** = always Max extra, **Random** = 1..Max extra. SexLab allows 4 creatures per scene, the rest get the next scene (chain). **Every creature becomes your companion** after its scene. |
-| MCM page **Peace** | Hotkey, duration, area, Max extra, Stable/Random, Debug messages, live counters, **Reset peace + group** (fix stuck). |
+| "you all happy" | This creature + **Max extra** (2-5, default 3) creatures nearby. **Stable** = always Max extra, **Random** = 2..Max extra. SexLab allows 4 creatures per scene, the rest get the next scene (chain). **Every creature becomes your companion** after its scene. |
+| MCM **Settings** page (Peace part, V.4.3: no own page) | Hotkey, duration, area, Max extra, Stable/Random, Debug messages, live counters, **Reset peace + group** (fix stuck). |
 | Removed | The test lines **"Hello!"** (K mode and Talk mode). V.3 is kept in `_backup_v3/`. |
 
 Dialogue modes (global `ILC_DialogueCommands`): 0 Talk, 1 K, 2 Mate, **3 Creature Call, 4 G key**.

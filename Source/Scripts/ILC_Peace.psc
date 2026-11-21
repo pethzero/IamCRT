@@ -21,13 +21,14 @@ Spell Property PeaceApplySpell Auto        ; ILC_PeaceApplySpell (target actor, 
 Int Property MODE_CALL = 3 AutoReadOnly
 Int Property MODE_AREA = 4 AutoReadOnly
 
-; ---- MCM page "Peace"
+; ---- MCM "Settings" page (Peace part)
 Int Property PeaceKey = 34 Auto Hidden          ; 34 = G
 Float Property PeaceMinutes = 5.0 Auto Hidden   ; 1 - 30 real minutes
 Float Property PeaceRadius = 2500.0 Auto Hidden ; G area
-Int Property MaxExtra = 3 Auto Hidden           ; 1 - 5 extra creatures for "you all happy"
-Bool Property RandomExtra = False Auto Hidden   ; False = Stable (always MaxExtra), True = Random 1..MaxExtra
+Int Property MaxExtra = 3 Auto Hidden           ; 2 - 5 extra creatures for "you all happy"
+Bool Property RandomExtra = False Auto Hidden   ; False = Stable (always MaxExtra), True = Random 2..MaxExtra
 Int Property MaxExtraLimit = 5 AutoReadOnly
+Int Property MinExtra = 2 AutoReadOnly
 
 String Property LIST_KEY = "ILC.PeaceActors" AutoReadOnly
 Bool busy = False
@@ -64,13 +65,13 @@ EndFunction
 
 Int Function ExtraCount()
 	Int m = MaxExtra
-	If m < 1
-		m = 1
+	If m < MinExtra
+		m = MinExtra
 	ElseIf m > MaxExtraLimit
 		m = MaxExtraLimit
 	EndIf
 	If RandomExtra
-		Return Utility.RandomInt(1, m)
+		Return Utility.RandomInt(MinExtra, m)
 	EndIf
 	Return m
 EndFunction
@@ -257,7 +258,7 @@ Actor Function NearestCreature(Actor[] list)
 EndFunction
 
 ; ---------------------------------------------------------------
-; Debug (MCM "Peace" page -> Reset)
+; Debug (MCM Settings -> Peace Debug -> Reset)
 ; ---------------------------------------------------------------
 Int Function ClearAllPeace()
 	Int n = 0
