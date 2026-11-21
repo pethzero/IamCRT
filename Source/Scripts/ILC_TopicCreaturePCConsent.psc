@@ -1,7 +1,7 @@
 ;BEGIN FRAGMENT CODE - Do not edit anything between this and the end comment
 ;NEXT FRAGMENT INDEX 1
 Scriptname ILC_TopicCreaturePCConsent Extends TopicInfo Hidden
-{ILoveCreature - Begin fragment of "I will do it." (ILC_ConsentSex) and "I will heal you." (ILC_PetHeal).
+{ILoveCreature - Begin fragment of "I will make you happy." (ILC_ConsentSex) and "I will heal you." (ILC_PetHeal).
 After the scene the creature becomes a companion (if needed) and is healed to full (ILC_Main.MateConsent).
 Adapted from SLAC slac_TopicCreaturePCConsent: the player agrees, a consensual SexLab
 scene starts, and when it ends the creature becomes a following companion.

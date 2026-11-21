@@ -311,7 +311,7 @@ Function PageBuffs()
 	SetCursorPosition(0)
 	; short label + short value per row (long text overlaps in SkyUI); full line in the info text
 	AddHeaderOption("Mate Rewards (" + (Main.BuffMinutes as Int) + " min, after the scene)")
-	AddTextOptionST("ILC_RwJoin", "I will do it.", "Join + restore")
+	AddTextOptionST("ILC_RwJoin", "I will make you happy.", "Join + restore")
 	AddTextOptionST("ILC_RwHeal", "I will heal you.", "Restore all")
 	AddTextOptionST("ILC_RwRough", "Rough", "Attack +" + (Main.BuffAttackPct as Int) + "%")
 	AddTextOptionST("ILC_RwDirty", "Dirty", "Speed +" + (Main.SpeedValue() as Int) + "%")
@@ -698,7 +698,7 @@ EndState
 ; reward rows: info text only (full dialogue line + full effect)
 State ILC_RwJoin
 	Event OnHighlightST()
-		SetInfoText("\"I will do it.\" (creature that is not your companion yet) - it joins you, then " + Main.RewardName(Main.REWARD_HEAL) + ".")
+		SetInfoText("\"I will make you happy.\" (creature that is not your companion yet) - it joins you, then " + Main.RewardName(Main.REWARD_HEAL) + ".")
 	EndEvent
 EndState
 State ILC_RwHeal

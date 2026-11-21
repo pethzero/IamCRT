@@ -24,7 +24,7 @@ Requires **SexLab.esm** (master since V.3). Backup of V.2 code: `_backup_v2\`.
 - **Spell "Creature Bond"** (added to the player on load, Alteration-style aimed spell copied from AF's Tame Animal):
   cast on any creature → it stops fighting, becomes friendly (ally, Aggression 0) and follows you as a companion.
   Unlike AF, the target does not need to be calmed first. NPCs are refused.
-- **K dialogue:** *I need a follower.* → **I will do it.** → consensual SexLab scene (`ILC_TopicCreaturePCConsent` →
+- **K dialogue:** *I need a follower.* → **I will make you happy.** → consensual SexLab scene (`ILC_TopicCreaturePCConsent` →
   `ILC_Main.StartMate`) → when the scene ends (`AnimationEnd_ILC_CreatureConsent`) the creature becomes a companion.
   If no scene can start, it becomes a companion right away.
 - **E on a companion → "Command Creature":** Follow · Mate · Wait · Let's go · Dismiss · Make your home here · Ride ·

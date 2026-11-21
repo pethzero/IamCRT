@@ -243,7 +243,7 @@ EndFunction
 
 ; ---------------------------------------------------------------
 ; V.3 Mate (adapted from SLAC slac_TopicCreaturePCConsent)
-; Used by the "I will do it." dialogue line (ILC_TopicCreaturePCConsent)
+; Used by the "I will make you happy." dialogue line (ILC_TopicCreaturePCConsent)
 ; and by the "Mate" button of the companion menu (ILC_Followers).
 ; abTameAfter = True: the creature becomes a companion when the scene ends
 ; (or right away if no scene could start).
@@ -252,7 +252,7 @@ Bool Function StartMate(Actor akCreature, Bool abTameAfter = False)
 	Return StartMateEx(akCreature, abTameAfter)
 EndFunction
 
-; "I will do it." / "I will heal you." (ILC_TopicCreaturePCConsent): consensual scene,
+; "I will make you happy." / "I will heal you." (ILC_TopicCreaturePCConsent): consensual scene,
 ; then the creature becomes a companion (if it isn't yet) and is healed to full.
 Bool Function MateConsent(Actor akCreature)
 	Return StartMateEx(akCreature, True, "", "", REWARD_HEAL)

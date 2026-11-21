@@ -269,7 +269,7 @@ for (edid, prompt, resp, frag, conds), topic in zip(SUB_CHOICES + EXTRA, sub_top
 
 # V.3: Consensual creature sex option (SexLab.esm is a master)
 t_consent = p.reserve("ILC_ConsentSex", "DIAL")
-p.fill(t_consent, dial(q_dlg.formid, branch=br.formid, prompt="I will do it."))
+p.fill(t_consent, dial(q_dlg.formid, branch=br.formid, prompt="I will make you happy."))
 p.add_info(t_consent, info(
     " ",
     flags=("Goodbye",) + silent,
