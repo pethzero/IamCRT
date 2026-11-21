@@ -25,13 +25,13 @@ Int Property MODE_AREA = 4 AutoReadOnly
 Int Property PeaceKey = 34 Auto Hidden          ; 34 = G
 Float Property PeaceMinutes = 5.0 Auto Hidden   ; 1 - 30 real minutes
 Float Property PeaceRadius = 2500.0 Auto Hidden ; G area
-Int Property MaxExtra = 3 Auto Hidden           ; 2 - 5 extra creatures for "you all happy"
+Int Property MaxExtra = 3 Auto Hidden           ; V.4.9 "Group size": creatures in a group scene, 2 - 4 (+ you)
 Bool Property RandomExtra = False Auto Hidden   ; False = Stable (always MaxExtra), True = Random 2..MaxExtra
 Bool Property PeaceAnim = False Auto Hidden       ; V.4.6 gesture on the hotkey - removed in V.4.8 (unused)
 Float Property PeaceAnimSeconds = 3.0 Auto Hidden ; how long before the dialogue opens (1 - 10)
 Bool Property MateAnim = True Auto Hidden         ; V.4.7 the same animation before every mate line (happy, dirty, all happy...)
 String Property PEACE_ANIM = "SRB_ILoveCreature_F_01" AutoReadOnly
-Int Property MaxExtraLimit = 5 AutoReadOnly
+Int Property MaxExtraLimit = 4 AutoReadOnly       ; SexLab: max 5 actors = you + 4 creatures
 Int Property MinExtra = 2 AutoReadOnly
 
 String Property LIST_KEY = "ILC.PeaceActors" AutoReadOnly
@@ -67,7 +67,17 @@ Function ApplyDuration()
 	EndIf
 EndFunction
 
-Int Function ExtraCount()
+Int Function GroupSizeShown()
+	If MaxExtra < MinExtra
+		Return MinExtra
+	ElseIf MaxExtra > MaxExtraLimit
+		Return MaxExtraLimit
+	EndIf
+	Return MaxExtra
+EndFunction
+
+; creatures in a group scene ("Maybe we can find some friends." / "I will make you all happy.")
+Int Function GroupSize()
 	Int m = MaxExtra
 	If m < MinExtra
 		m = MinExtra

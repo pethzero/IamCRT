@@ -923,12 +923,12 @@ Function PeaceRight()
 		Return
 	EndIf
 	AddEmptyOption()
-	AddHeaderOption("Group (you all happy)")
-	AddSliderOptionST("ILC_MaxExtra", "Max extra creatures", P.MaxExtra, "{0}")
+	AddHeaderOption("Group (friends / all happy)")
+	AddSliderOptionST("ILC_MaxExtra", "Group size (creatures)", P.GroupSizeShown(), "{0} + you")
 	If P.RandomExtra
-		AddTextOptionST("ILC_ExtraMode", "Extra mode", "Random 2-" + P.MaxExtra)
+		AddTextOptionST("ILC_ExtraMode", "Group mode", "Random 2-" + P.GroupSizeShown())
 	Else
-		AddTextOptionST("ILC_ExtraMode", "Extra mode", "Stable " + P.MaxExtra)
+		AddTextOptionST("ILC_ExtraMode", "Group mode", "Stable " + P.GroupSizeShown())
 	EndIf
 	AddEmptyOption()
 	AddHeaderOption("Debug")
@@ -1026,7 +1026,7 @@ EndState
 
 State ILC_MaxExtra
 	Event OnSliderOpenST()
-		OpenSlider(Main.Peace.MaxExtra, 3.0, 2.0, 5.0, 1.0)
+		OpenSlider(Main.Peace.GroupSizeShown(), 3.0, 2.0, 4.0, 1.0)
 	EndEvent
 	Event OnSliderAcceptST(Float v)
 		Main.Peace.MaxExtra = v as Int
@@ -1037,7 +1037,7 @@ State ILC_MaxExtra
 		ForcePageReset()
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("\"I will make you all happy.\": how many creatures join besides the one you talk to (2 - 5). All of them become your companions after their scene. SexLab allows 4 creatures per scene - the rest get the next scene. Default: 3.")
+		SetInfoText("How many creatures are in a group scene, the one you talk to included: 2 = 2 creatures + you. Used by \"Maybe we can find some friends.\" and \"I will make you all happy.\" (there they all become your companions). Max 4 (SexLab allows 5 actors). Fewer if not enough fit nearby. Default: 3.")
 	EndEvent
 EndState
 
@@ -1051,7 +1051,7 @@ State ILC_ExtraMode
 		ForcePageReset()
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("Stable: always Max extra creatures (if that many are nearby). Random: a random number from 2 to Max extra every time.")
+		SetInfoText("Stable: always Group size creatures (if that many fit nearby). Random: 2 to Group size creatures, new every time.")
 	EndEvent
 EndState
 

@@ -42,6 +42,7 @@ Float Property BuffRegenPct = 0.5 Auto Hidden      ; % of max health per second 
 Float Property SpeedCap = 30.0 AutoReadOnly
 Int buffSettingsVersion = 0
 Bool Property DebugMessages = False Auto Hidden    ; MCM Buffs -> Debug: show every reward step on screen
+Bool pendingTameGroup = False                      ; V.4.9 tame every creature of the scene
 Bool waitingForScene = False                       ; a mate scene is running, reward pending
 
 Function Dbg(String s)
@@ -292,7 +293,7 @@ EndFunction
 
 ; Core: start a consensual scene (player + creature [+ group]), tame and/or reward when it ends.
 ; asTags / asSuppress pick animations (fallback: any animation); if no scene can start, tame / reward right away.
-Bool Function StartMateEx(Actor akCreature, Bool abTameAfter = False, String asTags = "", String asSuppress = "", Int aiReward = 0, Bool abGroup = False)
+Bool Function StartMateEx(Actor akCreature, Bool abTameAfter = False, String asTags = "", String asSuppress = "", Int aiReward = 0, Bool abGroup = False, Bool abAll = False)
 	String err = CheckMate(akCreature)
 	If err != ""
 		Debug.Notification("ILoveCreature: " + err)
@@ -303,8 +304,9 @@ Bool Function StartMateEx(Actor akCreature, Bool abTameAfter = False, String asT
 	; positions: player (passive), creature, then extras for a group scene
 	Actor[] extras = new Actor[3]
 	Int extraCount = 0
-	If abGroup
-		extraCount = FindGroupCreatures(akCreature, extras)
+	If abGroup                        ; V.4.9: MCM "Group size" = creatures in the scene (you + 2..4)
+		extras = PapyrusUtil.ActorArray(GroupExtras())
+		extraCount = FindGroupCreatures(akCreature, extras, abAll)
 	EndIf
 
 	sslBaseAnimation[] anims
@@ -321,6 +323,11 @@ Bool Function StartMateEx(Actor akCreature, Bool abTameAfter = False, String asT
 			extraCount -= 1        ; no animation for this many creatures -> try with one less
 			pos = None
 		EndIf
+	EndWhile
+	Int cut = extraCount               ; creatures dropped for lack of animations are not in the scene
+	While cut < extras.Length
+		extras[cut] = None
+		cut += 1
 	EndWhile
 
 	If abGroup
@@ -346,6 +353,7 @@ Bool Function StartMateEx(Actor akCreature, Bool abTameAfter = False, String asT
 	pendingReward = aiReward
 	pendingRewardActor = akCreature
 	pendingGroup = extras
+	pendingTameGroup = abAll          ; "I will make you all happy.": the friends become companions too
 
 	; anims empty -> SexLab picks its default animations for these actors
 	Int tid = SexLab.StartSex(pos, anims, None, None, True, MateHook)
@@ -361,6 +369,7 @@ Bool Function StartMateEx(Actor akCreature, Bool abTameAfter = False, String asT
 	pendingReward = 0
 	pendingRewardActor = None
 	pendingGroup = None
+	pendingTameGroup = False
 	If intro
 		Peace.StopPeaceAnim()
 	EndIf
@@ -390,9 +399,30 @@ EndFunction
 ; 1) our companions near the player, 2) other non-hostile creatures around the player (MiscUtil scan)
 Float Property GroupRadius = 3000.0 Auto Hidden
 
-Int Function FindGroupCreatures(Actor akCreature, Actor[] outExtras)
-	Int want = outExtras.Length        ; Group: 3, V.4 "all of you": 2 - 5
+; MCM Settings -> Group size (creatures in the scene, 2 - 4) minus the creature you talk to
+Int Function GroupExtras()
+	If Peace
+		Return Peace.GroupSize() - 1
+	EndIf
+	Return 2
+EndFunction
+
+; abPeacefulFirst ("I will make you all happy." after G): the creatures you calmed come first
+Int Function FindGroupCreatures(Actor akCreature, Actor[] outExtras, Bool abPeacefulFirst = False)
+	Int want = outExtras.Length
 	Int found = 0
+	If abPeacefulFirst && Peace
+		Int pn = StorageUtil.FormListCount(None, Peace.LIST_KEY)
+		Int pi = 0
+		While pi < pn && found < want
+			Actor pa = StorageUtil.FormListGet(None, Peace.LIST_KEY, pi) as Actor
+			If IsGroupCandidate(pa, akCreature, outExtras)
+				outExtras[found] = pa
+				found += 1
+			EndIf
+			pi += 1
+		EndWhile
+	EndIf
 	Int companions = 0
 	If Followers
 		Int n = Followers.GetSlotLimit()
@@ -774,6 +804,8 @@ Function FinishPending()
 	Actor r = pendingRewardActor
 	Int reward = pendingReward
 	Actor[] grp = pendingGroup
+	Bool tameGrp = pendingTameGroup
+	pendingTameGroup = False
 	pendingTame = None
 	pendingRewardActor = None
 	pendingReward = 0
@@ -782,7 +814,7 @@ Function FinishPending()
 		Return
 	EndIf
 	TameNow(a, True)
-	If chainQueue && grp              ; V.4 "you all happy": the other creatures of the scene join too
+	If (tameGrp || chainQueue) && grp     ; "you all happy": the other creatures of the scene join too
 		Int g = 0
 		While g < grp.Length
 			TameNow(grp[g], True)
@@ -818,7 +850,7 @@ Bool Function MateCall(Actor akCreature)
 	Return StartMateEx(akCreature, True, "", "", REWARD_NONE)
 EndFunction
 
-; "I will make you all happy." (G only): this creature + ExtraCount() creatures around.
+; "I will make you all happy." (G only): see MateAll. The chain code below is no longer used (V.4.9).
 ; Every creature becomes a companion when its scene ends (see FinishPending).
 ; SexLab allows max 5 actors (player + 4 creatures) per scene, so the creatures are queued and the
 ; scenes run one after another until everyone had a turn.
@@ -827,36 +859,10 @@ Bool[] chainUsed                   ; True = had its scene (or was skipped)
 Bool chainNext = False
 
 Bool Function MateAll(Actor akCreature)
-	String err = CheckMate(akCreature)
-	If err != ""
-		Debug.Notification("ILoveCreature: " + err)
-		Return False
-	EndIf
-	Int want = 3
-	If Peace
-		want = Peace.ExtraCount()
-	EndIf
-	Actor[] extras = PapyrusUtil.ActorArray(want)
-	Int found = FindAllCreatures(akCreature, extras)
-	chainQueue = PapyrusUtil.ActorArray(found + 1)
-	chainUsed = Utility.CreateBoolArray(found + 1, False)
-	chainQueue[0] = akCreature
-	Int i = 0
-	While i < found
-		chainQueue[i + 1] = extras[i]
-		i += 1
-	EndWhile
-	chainNext = False
-	If found < want
-		Debug.Notification("All of you: " + (found + 1) + " creature(s) (wanted 1 + " + want + ", only " + found + " free nearby)")
-	Else
-		Debug.Notification("All of you: " + (found + 1) + " creature(s)")
-	EndIf
-	If !StartNextChainScene(True)
-		Debug.Notification("ILoveCreature: All of you could not start (see the messages above)")
-		Return False
-	EndIf
-	Return True
+	; V.4.9: same scene as "Maybe we can find some friends." (one scene, Group size creatures),
+	; the calmed creatures are asked first, every creature of the scene becomes a companion
+	ClearChain()
+	Return StartMateEx(akCreature, True, "", "", REWARD_NONE, True, True)
 EndFunction
 
 ; V.4.5 "all of you" picks the creatures you just calmed (G key) first, then other friendly creatures
@@ -1106,6 +1112,7 @@ Function ResetPeaceAndGroup()
 	pendingRewardActor = None
 	pendingReward = 0
 	pendingGroup = None
+	pendingTameGroup = False
 	CloseDialogue()
 	If Followers && Followers.gDialogueCommands
 		Followers.gDialogueCommands.SetValue(1.0)
