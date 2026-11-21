@@ -896,10 +896,10 @@ Function PeaceLeft()
 	AddKeyMapOptionST("ILC_PeaceKey", "Peace hotkey", P.PeaceKey, OPTION_FLAG_WITH_UNMAP + FlagIf(Main.ModEnabled))
 	AddSliderOptionST("ILC_PeaceMinutes", "Peace duration", P.PeaceMinutes, "{0} min")
 	AddSliderOptionST("ILC_PeaceRadius", "Hotkey area", P.PeaceRadius, "{0} units")
-	AddToggleOptionST("ILC_PeaceAnim", "Play animation on hotkey", P.PeaceAnim)
 	AddToggleOptionST("ILC_MateAnim", "Play animation before mate lines", P.MateAnim)
-	AddSliderOptionST("ILC_PeaceAnimTime", "Animation time", P.PeaceAnimSeconds, "{1} s", FlagIf(P.PeaceAnim || P.MateAnim))
-	AddTextOptionST("ILC_PeaceAnimTest", "Play the animation now", "PLAY")
+	AddSliderOptionST("ILC_PeaceAnimTime", "Animation time", P.PeaceAnimSeconds, "{1} s", FlagIf(P.MateAnim))
+	; test button (state ILC_PeaceAnimTest below), hidden for now:
+	; AddTextOptionST("ILC_PeaceAnimTest", "Play the animation now", "PLAY")
 	AddEmptyOption()
 	AddHeaderOption("Spells")
 	AddTextOptionST("ILC_InfoPeaceSpell", "Creature Peace", "Calm")
@@ -1096,7 +1096,7 @@ State ILC_PeaceAnimTime
 		SetSliderOptionValueST(3.0, "{1} s")
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("How long the animation plays before you go back to normal and the creature comes to talk. Default: 3 s.")
+		SetInfoText("How long the animation plays before the scene starts. Default: 3 s.")
 	EndEvent
 EndState
 

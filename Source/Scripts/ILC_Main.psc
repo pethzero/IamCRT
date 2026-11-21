@@ -293,7 +293,6 @@ EndFunction
 ; Core: start a consensual scene (player + creature [+ group]), tame and/or reward when it ends.
 ; asTags / asSuppress pick animations (fallback: any animation); if no scene can start, tame / reward right away.
 Bool Function StartMateEx(Actor akCreature, Bool abTameAfter = False, String asTags = "", String asSuppress = "", Int aiReward = 0, Bool abGroup = False)
-	PlayMateIntro()
 	String err = CheckMate(akCreature)
 	If err != ""
 		Debug.Notification("ILoveCreature: " + err)
@@ -338,6 +337,7 @@ Bool Function StartMateEx(Actor akCreature, Bool abTameAfter = False, String asT
 		stripped = SexLab.StripActor(PlayerRef, DoAnimate = True)
 		Utility.Wait(3.0)
 	EndIf
+	Bool intro = PlayMateIntro()       ; everything is ready: the scene starts as soon as the animation ends
 
 	pendingTame = None
 	If abTameAfter
@@ -361,6 +361,9 @@ Bool Function StartMateEx(Actor akCreature, Bool abTameAfter = False, String asT
 	pendingReward = 0
 	pendingRewardActor = None
 	pendingGroup = None
+	If intro
+		Peace.StopPeaceAnim()
+	EndIf
 	If stripped
 		SexLab.UnstripActor(PlayerRef, stripped)
 	EndIf
@@ -710,17 +713,23 @@ String Function CheckMate(Actor akCreature)
 	Return ""
 EndFunction
 
-; V.4.7 the prepared animation before a mate line starts its scene (MCM Settings -> Peace)
-Function PlayMateIntro()
+; V.4.7 the prepared animation before a mate line starts its scene (MCM Settings -> Peace).
+; V.4.8: called when the scene is fully prepared; the player is NOT sent back to idle, SexLab starts
+; the scene straight from the animation (no stop / start hitch). True = it played.
+Bool Function PlayMateIntro()
 	If !Peace || !Peace.MateAnim
-		Return
+		Return False
 	EndIf
 	Int w = 0
 	While w < 25 && UI.IsMenuOpen("Dialogue Menu")      ; the line is said first, the animation plays after the menu
 		Utility.Wait(0.2)
 		w += 1
 	EndWhile
-	Peace.PlayGesture()
+	If !Peace.StartPeaceAnim()
+		Return False
+	EndIf
+	Utility.Wait(Peace.PeaceAnimSeconds)
+	Return True
 EndFunction
 
 Function TameNow(Actor akCreature, Bool abTame)
@@ -818,7 +827,6 @@ Bool[] chainUsed                   ; True = had its scene (or was skipped)
 Bool chainNext = False
 
 Bool Function MateAll(Actor akCreature)
-	PlayMateIntro()
 	String err = CheckMate(akCreature)
 	If err != ""
 		Debug.Notification("ILoveCreature: " + err)
@@ -831,7 +839,7 @@ Bool Function MateAll(Actor akCreature)
 	Actor[] extras = PapyrusUtil.ActorArray(want)
 	Int found = FindAllCreatures(akCreature, extras)
 	chainQueue = PapyrusUtil.ActorArray(found + 1)
-	chainUsed = PapyrusUtil.BoolArray(found + 1)
+	chainUsed = Utility.CreateBoolArray(found + 1, False)
 	chainQueue[0] = akCreature
 	Int i = 0
 	While i < found
@@ -844,8 +852,8 @@ Bool Function MateAll(Actor akCreature)
 	Else
 		Debug.Notification("All of you: " + (found + 1) + " creature(s)")
 	EndIf
-	If !StartNextChainScene()
-		Debug.Notification("ILoveCreature: No animation found for these creatures")
+	If !StartNextChainScene(True)
+		Debug.Notification("ILoveCreature: All of you could not start (see the messages above)")
 		Return False
 	EndIf
 	Return True
@@ -938,10 +946,39 @@ Bool Function ChainOK(Actor a)
 	Return a.GetDistance(PlayerRef) < GroupRadius * 1.5
 EndFunction
 
+String Function ChainWhy(Actor a)
+	If !a || a.IsDead() || a.IsDisabled()
+		Return "gone"
+	ElseIf !a.Is3DLoaded()
+		Return "not loaded"
+	ElseIf SexLab.IsActorActive(a)
+		Return "already in a scene"
+	ElseIf SexLab.IsForbidden(a)
+		Return "forbidden by SexLab"
+	ElseIf a.IsInCombat()
+		Return "in combat"
+	EndIf
+	Return "too far"
+EndFunction
+
 Bool Function ChainFits(Actor lead, Actor b)
 	Race r1 = lead.GetRace()
 	Race r2 = b.GetRace()
 	Return r1 == r2 || SexLab.AllowedCreatureCombination(r1, r2)
+EndFunction
+
+Int Function NextWaiting()
+	If !chainQueue || !chainUsed
+		Return -1
+	EndIf
+	Int i = 0
+	While i < chainUsed.Length
+		If !chainUsed[i]
+			Return i
+		EndIf
+		i += 1
+	EndWhile
+	Return -1
 EndFunction
 
 Int Function ChainLeft()
@@ -961,7 +998,7 @@ EndFunction
 
 ; next scene: the first creature still waiting + up to 3 waiting creatures that fit with it
 ; (same race or a combination SexLab allows; fewer if no animation fits). The rest wait for a later scene.
-Bool Function StartNextChainScene()
+Bool Function StartNextChainScene(Bool abIntro = False)
 	If !chainQueue || !SexLab
 		ClearChain()
 		Return False
@@ -971,7 +1008,7 @@ Bool Function StartNextChainScene()
 		ClearChain()
 		Return False
 	EndIf
-	Int li = chainUsed.Find(False)
+	Int li = NextWaiting()
 	While li >= 0
 		Actor lead = chainQueue[li]
 		chainUsed[li] = True
@@ -1002,7 +1039,7 @@ Bool Function StartNextChainScene()
 				EndIf
 			EndWhile
 
-			If anims.Length > 0
+			If anims.Length > 0 || k == 0
 				Int m = 0
 				While m < k
 					chainUsed[idx[m]] = True
@@ -1012,6 +1049,8 @@ Bool Function StartNextChainScene()
 				pendingReward = REWARD_NONE
 				pendingRewardActor = lead
 				pendingGroup = ex
+				Bool intro = abIntro && PlayMateIntro()
+				abIntro = False
 				Int tid = SexLab.StartSex(pos, anims, None, None, True, MateHook)
 				If tid >= 0
 					Int left = ChainLeft()
@@ -1026,19 +1065,20 @@ Bool Function StartNextChainScene()
 				pendingTame = None
 				pendingRewardActor = None
 				pendingGroup = None
+				If intro
+					Peace.StopPeaceAnim()
+				EndIf
 				m = 0
 				While m < k
 					chainUsed[idx[m]] = False  ; the others get their own turn
 					m += 1
 				EndWhile
-				Dbg("All of you: scene failed for " + lead.GetDisplayName())
-			Else
-				Dbg("All of you: no animation for " + lead.GetDisplayName() + " (" + lead.GetRace().GetName() + ")")
+				Debug.Notification("All of you: SexLab could not start a scene with " + lead.GetDisplayName())
 			EndIf
 		Else
-			Dbg("All of you: skipped " + lead.GetDisplayName() + " (not free)")
+			Debug.Notification("All of you: " + lead.GetDisplayName() + " is not free (" + ChainWhy(lead) + ")")
 		EndIf
-		li = chainUsed.Find(False)
+		li = NextWaiting()
 	EndWhile
 	ClearChain()
 	Return False

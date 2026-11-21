@@ -27,7 +27,7 @@ Float Property PeaceMinutes = 5.0 Auto Hidden   ; 1 - 30 real minutes
 Float Property PeaceRadius = 2500.0 Auto Hidden ; G area
 Int Property MaxExtra = 3 Auto Hidden           ; 2 - 5 extra creatures for "you all happy"
 Bool Property RandomExtra = False Auto Hidden   ; False = Stable (always MaxExtra), True = Random 2..MaxExtra
-Bool Property PeaceAnim = True Auto Hidden        ; V.4.6 play the gesture on the hotkey
+Bool Property PeaceAnim = False Auto Hidden       ; V.4.6 gesture on the hotkey - removed in V.4.8 (unused)
 Float Property PeaceAnimSeconds = 3.0 Auto Hidden ; how long before the dialogue opens (1 - 10)
 Bool Property MateAnim = True Auto Hidden         ; V.4.7 the same animation before every mate line (happy, dirty, all happy...)
 String Property PEACE_ANIM = "SRB_ILoveCreature_F_01" AutoReadOnly
@@ -208,8 +208,6 @@ Function OnPeaceKey()
 	EndIf
 	busy = True
 	Debug.Notification("I come in peace.")
-	Float animStart = Utility.GetCurrentRealTime()
-	Bool anim = PeaceAnim && StartPeaceAnim()
 
 	Actor[] near = MiscUtil.ScanCellNPCs(PlayerRef, PeaceRadius)
 	Actor[] calmed = PapyrusUtil.ActorArray(0)
@@ -231,13 +229,6 @@ Function OnPeaceKey()
 		Debug.Notification(calmed.Length + " creature(s) will not fight you for " + (PeaceMinutes as Int) + " min")
 	EndIf
 	Main.Dbg("G: " + near.Length + " actors in " + (PeaceRadius as Int) + ", " + calmed.Length + " calmed")
-	If anim                        ; let the gesture finish before the creature comes to talk
-		Float left = PeaceAnimSeconds - (Utility.GetCurrentRealTime() - animStart)
-		If left > 0.0
-			Utility.Wait(left)
-		EndIf
-		StopPeaceAnim()
-	EndIf
 
 	; dialogue: creature under the crosshair, otherwise the nearest creature around
 	Actor target = Game.GetCurrentCrosshairRef() as Actor
