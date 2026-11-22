@@ -29,7 +29,7 @@ Int Property PeaceKey = 34 Auto Hidden          ; 34 = G
 Float Property PeaceMinutes = 5.0 Auto Hidden   ; 1 - 30 real minutes
 Float Property PeaceRadius = 2500.0 Auto Hidden ; G area
 Int Property MaxExtra = 3 Auto Hidden           ; V.4.9 "Group size": creatures in a group scene, 2 - 4 (+ you)
-Bool Property RandomExtra = False Auto Hidden   ; False = Stable (always MaxExtra), True = Random 2..MaxExtra
+Bool Property RandomExtra = True Auto Hidden    ; True = Random 2..MaxExtra (default for a new game, V.5.1), False = Stable
 Bool Property PeaceAnim = False Auto Hidden       ; V.4.6 gesture on the hotkey - removed in V.4.8 (unused)
 Float Property PeaceAnimSeconds = 3.0 Auto Hidden ; how long before the dialogue opens (1 - 10)
 Bool Property MateAnim = True Auto Hidden         ; V.4.7 the same animation before every mate line (happy, dirty, all happy...)

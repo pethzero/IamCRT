@@ -1234,11 +1234,11 @@ State ILC_ExtraMode
 		ForcePageReset()
 	EndEvent
 	Event OnDefaultST()
-		Main.Peace.RandomExtra = False
+		Main.Peace.RandomExtra = True
 		ForcePageReset()
 	EndEvent
 	Event OnHighlightST()
-		SetInfoText("Stable: always the number of creatures set above (if that many fit nearby). Random: 2 up to that number, new every time.")
+		SetInfoText("Stable: always the number of creatures set above (if that many fit nearby). Random: 2 up to that number, new every time. Default: Random.")
 	EndEvent
 EndState
 
